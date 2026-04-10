@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: secureshop-db
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: secureshop
+
+  server:
+    build: ./server
+    container_name: secureshop-api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/secureshop
+      JWT_SECRET: ${JWT_SECRET:-changeme_in_production}
+      STRIPE_KEY: ${STRIPE_KEY}
+      CLIENT_URL: http://localhost:5173
+    depends_on:
+      - mongodb
+
+  client:
+    build: ./client
+    container_name: secureshop-web
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - server
+
+volumes:
+  mongo_data:
