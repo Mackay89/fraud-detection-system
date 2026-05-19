@@ -4,18 +4,16 @@ services:
     env: python
     region: oregon
     plan: free
-    buildCommand: pip install -r backend/requirements.txt
-    startCommand: cd backend && python app.py
+    buildCommand: pip install -r fraud-detection-system/backend/requirements.txt && cd fraud-detection-system/backend/models && python3 train_model.py
+    startCommand: cd fraud-detection-system/backend && python app.py
     envVars:
       - key: SECRET_KEY
         generateValue: true
       - key: JWT_SECRET_KEY
         generateValue: true
-      - key: DATABASE_URL
-        fromDatabase:
-          name: fraudshield-db
-          property: connectionString
       - key: OPENROUTER_API_KEY
+        sync: false
+      - key: DATABASE_URL
         sync: false
 
 databases:
