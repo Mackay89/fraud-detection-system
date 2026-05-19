@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FraudShield Enterprise</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<style>
+:root{--bg:#050a0e;--bg2:#0a1219;--card:#0d1921;--border:rgba(0,255,180,0.12);--border2:rgba(0,255,180,0.25);--accent:#00ffb4;--accent2:#00c8ff;--accent3:#ff4d6d;--accent4:#ffd60a;--accent5:#b44dff;--text:#e8f5f0;--text2:#7ba89a;--text3:#3d6b5c;--mono:"Space Mono",monospace;--sans:"DM Sans",sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;background-image:linear-gradient(rgba(0,255,180,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,180,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+nav{position:sticky;top:0;z-index:100;background:rgba(5,10,14,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:60px}
+.logo{font-family:var(--mono);font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+.logo span{color:var(--accent)}.dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,255,180,0.4)}50%{box-shadow:0 0 0 6px rgba(0,255,180,0)}}
+.nav-links{display:flex;gap:2px;overflow-x:auto}
+.nav-btn{background:none;border:none;cursor:pointer;font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--text2);padding:6px 10px;border-radius:4px;transition:all 0.2s;text-transform:uppercase;white-space:nowrap}
+.nav-btn:hover{color:var(--accent);background:rgba(0,255,180,0.06)}
+.nav-btn.active{color:var(--accent);border-bottom:2px solid var(--accent)}
+.nav-right{display:flex;align-items:center;gap:8px}
+.badge-user{font-family:var(--mono);font-size:11px;color:var(--accent);background:rgba(0,255,180,0.08);border:1px solid var(--border);padding:4px 10px;border-radius:20px}
+.btn-logout{font-family:var(--mono);font-size:10px;color:var(--text2);background:none;border:1px solid var(--border);padding:5px 12px;border-radius:4px;cursor:pointer;transition:all 0.2s;text-transform:uppercase}
+.btn-logout:hover{color:var(--accent3);border-color:var(--accent3)}
+main{position:relative;z-index:1;padding:1.5rem;max-width:1600px;margin:0 auto;padding-bottom:50px}
+.tab-content{display:none}.tab-content.active{display:block;animation:fadeIn 0.3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.section-label{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:1.25rem;display:flex;align-items:center;gap:8px}
+.section-label::after{content:"";flex:1;height:1px;background:var(--border)}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:1.5rem}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:1.5rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1.5rem}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1.25rem}
+.card:hover{border-color:var(--border2)}
+.card-title{font-family:var(--mono);font-size:11px;letter-spacing:1px;color:var(--accent);text-transform:uppercase;margin-bottom:1rem;display:flex;align-items:center;gap:8px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1.25rem;position:relative;overflow:hidden;transition:border-color 0.2s}
+.stat-card::before{content:"";position:absolute;top:0;left:0;right:0;height:2px}
+.c-green::before{background:var(--accent)}.c-red::before{background:var(--accent3)}.c-blue::before{background:var(--accent2)}.c-yellow::before{background:var(--accent4)}.c-purple::before{background:var(--accent5)}
+.stat-label{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;color:var(--text2);text-transform:uppercase;margin-bottom:10px}
+.stat-value{font-family:var(--mono);font-size:28px;font-weight:700;line-height:1;margin-bottom:4px}
+.c-green .stat-value{color:var(--accent)}.c-red .stat-value{color:var(--accent3)}.c-blue .stat-value{color:var(--accent2)}.c-yellow .stat-value{color:var(--accent4)}.c-purple .stat-value{color:var(--accent5)}
+.stat-sub{font-size:11px;color:var(--text3)}
+.badge{font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:3px 8px;border-radius:3px;text-transform:uppercase;display:inline-block}
+.badge-green{background:rgba(0,255,180,0.1);color:var(--accent);border:1px solid rgba(0,255,180,0.2)}
+.badge-red{background:rgba(255,77,109,0.1);color:var(--accent3);border:1px solid rgba(255,77,109,0.2)}
+.badge-yellow{background:rgba(255,214,10,0.1);color:var(--accent4);border:1px solid rgba(255,214,10,0.2)}
+.badge-blue{background:rgba(0,200,255,0.1);color:var(--accent2);border:1px solid rgba(0,200,255,0.2)}
+.badge-purple{background:rgba(180,77,255,0.1);color:var(--accent5);border:1px solid rgba(180,77,255,0.2)}
+.feed-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,255,180,0.05);font-size:12px}
+.feed-row:last-child{border-bottom:none}
+.form-group{margin-bottom:0.875rem}
+.form-group label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:1.5px;color:var(--text2);text-transform:uppercase;margin-bottom:5px}
+.form-group input,.form-group select,.form-group textarea{width:100%;background:rgba(0,255,180,0.03);border:1px solid var(--border);border-radius:4px;padding:9px 12px;color:var(--text);font-family:var(--mono);font-size:12px;transition:border-color 0.2s;outline:none;appearance:none}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,255,180,0.08)}
+.form-group textarea{resize:vertical;min-height:70px}
+.btn{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:10px 18px;border-radius:4px;cursor:pointer;transition:all 0.2s;border:none}
+.btn-primary{background:var(--accent);color:var(--bg)}.btn-primary:hover{background:#00e8a2;transform:translateY(-1px)}
+.btn-danger{background:var(--accent3);color:#fff}.btn-danger:hover{opacity:0.85}
+.btn-outline{background:transparent;color:var(--accent);border:1px solid var(--accent)}.btn-outline:hover{background:rgba(0,255,180,0.08)}
+.btn-sm{padding:6px 12px;font-size:10px}
+.btn.loading{opacity:0.6;pointer-events:none}
+table{width:100%;border-collapse:collapse}
+thead tr{background:rgba(0,255,180,0.03)}
+th{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--text2);text-transform:uppercase;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border)}
+td{padding:10px 14px;font-size:12px;color:var(--text2);border-bottom:1px solid rgba(0,255,180,0.04)}
+tbody tr:hover td{background:rgba(0,255,180,0.02)}
+.mono{font-family:var(--mono)}
+.ticker{position:fixed;bottom:0;left:0;right:0;z-index:50;background:rgba(0,0,0,0.92);border-top:1px solid var(--border);padding:6px 0;overflow:hidden}
+.ticker-inner{display:flex;gap:40px;animation:ticker 35s linear infinite;white-space:nowrap}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.ticker-item{font-family:var(--mono);font-size:10px;color:var(--text2);display:flex;align-items:center;gap:6px}
+.t-val{color:var(--accent)}.t-alert{color:var(--accent3)}.t-warn{color:var(--accent4)}
+.copilot-fab{position:fixed;bottom:70px;right:1.5rem;z-index:200;width:48px;height:48px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 20px rgba(0,255,180,0.3);transition:all 0.2s}
+.copilot-fab:hover{transform:scale(1.1)}
+.copilot-panel{position:fixed;bottom:130px;right:1.5rem;z-index:200;width:360px;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.5);display:none;flex-direction:column;max-height:460px}
+.copilot-panel.open{display:flex}
+.copilot-head{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:rgba(0,255,180,0.04)}
+.copilot-head-title{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:1px}
+.copilot-close{background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px}
+.copilot-messages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:85%;font-size:12px;line-height:1.6;padding:9px 12px;border-radius:8px}
+.msg.ai{background:rgba(0,255,180,0.08);border:1px solid var(--border);color:var(--text);align-self:flex-start}
+.msg.user{background:rgba(0,200,255,0.1);border:1px solid rgba(0,200,255,0.2);color:var(--text);align-self:flex-end}
+.copilot-input-row{padding:10px;border-top:1px solid var(--border);display:flex;gap:8px}
+.copilot-input{flex:1;background:rgba(0,255,180,0.03);border:1px solid var(--border);border-radius:4px;padding:7px 10px;color:var(--text);font-family:var(--sans);font-size:12px;outline:none}
+.copilot-input:focus{border-color:var(--accent)}
+.copilot-send{background:var(--accent);border:none;border-radius:4px;padding:7px 12px;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--bg);font-weight:700}
+.login-overlay{position:fixed;inset:0;z-index:999;background:var(--bg);display:flex;align-items:center;justify-content:center}
+.login-box{background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:2.5rem;width:380px;max-width:90vw}
+.login-logo{font-family:var(--mono);font-size:20px;font-weight:700;text-align:center;margin-bottom:4px}
+.login-logo span{color:var(--accent)}
+.login-sub{font-family:var(--mono);font-size:10px;color:var(--text3);text-align:center;letter-spacing:2px;margin-bottom:2rem;text-transform:uppercase}
+.login-tabs{display:flex;gap:0;margin-bottom:1.5rem;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.login-tab{flex:1;padding:9px;font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;border:none;cursor:pointer;transition:all 0.2s}
+.login-tab.active{background:var(--accent);color:var(--bg);font-weight:700}
+.login-tab:not(.active){background:transparent;color:var(--text2)}
+.login-group{margin-bottom:0.875rem}
+.login-group label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:1.5px;color:var(--text2);text-transform:uppercase;margin-bottom:5px}
+.login-group input{width:100%;background:rgba(0,255,180,0.03);border:1px solid var(--border);border-radius:4px;padding:10px 12px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;transition:border-color 0.2s}
+.login-group input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,255,180,0.08)}
+.login-btn{width:100%;margin-top:1rem;background:var(--accent);color:var(--bg);border:none;font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;transition:all 0.2s}
+.login-btn:hover{background:#00e8a2}.login-btn:disabled{opacity:0.6;pointer-events:none}
+.login-err{font-family:var(--mono);font-size:11px;color:var(--accent3);text-align:center;margin-top:8px;min-height:16px}
+.risk-bar-bg{background:rgba(255,255,255,0.06);border-radius:3px;height:6px;overflow:hidden;margin-top:4px}
+.risk-bar-fill{height:100%;border-radius:3px;transition:width 0.6s cubic-bezier(0.4,0,0.2,1)}
+.threat-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,255,180,0.05);font-size:12px}
+.threat-row:last-child{border-bottom:none}
+.conf-bar{width:60px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden}
+.conf-fill{height:100%;border-radius:2px;background:var(--accent3)}
+.case-row{padding:10px 14px;border-bottom:1px solid rgba(0,255,180,0.05);display:flex;align-items:center;gap:10px;cursor:pointer;transition:background 0.15s}
+.case-row:hover{background:rgba(0,255,180,0.03)}
+.recovery-btn{display:flex;flex-direction:column;align-items:center;background:rgba(0,255,180,0.04);border:1px solid var(--border);border-radius:6px;padding:14px 10px;cursor:pointer;transition:all 0.2s;flex:1}
+.recovery-btn:hover{border-color:var(--border2);background:rgba(0,255,180,0.08)}
+.rb-icon{font-size:24px;margin-bottom:6px}
+.rb-label{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--accent);text-transform:uppercase}
+.rb-sub{font-size:11px;color:var(--text3);margin-top:3px}
+.graph-node{display:inline-flex;flex-direction:column;align-items:center;margin:6px}
+.node-circle{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;font-weight:700}
+.node-fraud{background:rgba(255,77,109,0.15);border:2px solid var(--accent3);color:var(--accent3)}
+.node-legit{background:rgba(0,255,180,0.1);border:2px solid var(--accent);color:var(--accent)}
+.node-label{font-size:10px;color:var(--text3);margin-top:4px;font-family:var(--mono)}
+.scenarios{display:flex;flex-direction:column;gap:6px}
+.scenario-btn{background:rgba(0,255,180,0.03);border:1px solid var(--border);border-radius:4px;padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all 0.2s;text-align:left;width:100%;font-size:12px;color:var(--text2)}
+.scenario-btn:hover{border-color:var(--border2);color:var(--text)}
+.chart-wrap{position:relative;height:200px}
+.leaflet-container{background:#0a1219}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+@media(max-width:900px){.grid4{grid-template-columns:repeat(2,1fr)}.grid3{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo"><div class="dot"></div><span>Fraud</span>Shield <span style="font-size:10px;color:var(--text3);margin-left:4px">ENTERPRISE</span></div>
+  <div class="nav-links">
+    <button class="nav-btn active" onclick="switchTab('soc',this)">SOC</button>
+    <button class="nav-btn" onclick="switchTab('dashboard',this)">Dashboard</button>
+    <button class="nav-btn" onclick="switchTab('check',this)">Analyze</button>
+    <button class="nav-btn" onclick="switchTab('cases',this)">Cases</button>
+    <button class="nav-btn" onclick="switchTab('threats',this)">Threats</button>
+    <button class="nav-btn" onclick="switchTab('recovery',this)">Recovery</button>
+    <button class="nav-btn" onclick="switchTab('geo',this)">Geo Intel</button>
+    <button class="nav-btn" onclick="switchTab('atm',this)">ATM Forensics</button>
+    <button class="nav-btn" onclick="switchTab('investigate',this)">Investigate</button>
+    <button class="nav-btn" onclick="switchTab('alerts',this)">Alerts</button>
+    <button class="nav-btn" onclick="switchTab('telecom',this)">Telecom</button>
+    <button class="nav-btn" onclick="switchTab('evidence',this)">Evidence</button>
+    <button class="nav-btn" onclick="switchTab('behavioral',this)">Behavioral</button>
+    <button class="nav-btn" onclick="switchTab('history',this)">History</button>
+  </div>
+  <div class="nav-right">
+    <span class="badge-user" id="badge-user">&#9679; admin</span>
+    <button class="btn-logout" onclick="doLogout()">Logout</button>
+  </div>
+</nav>
+<main>
+<div id="tab-soc" class="tab-content active">
+  <div class="section-label">SOC Command Center</div>
+  <div class="grid4">
+    <div class="stat-card c-green"><div class="stat-label">Total Transactions</div><div class="stat-value" id="s-total">0</div><div class="stat-sub">All time</div></div>
+    <div class="stat-card c-red"><div class="stat-label">Fraud Detected</div><div class="stat-value" id="s-fraud">0</div><div class="stat-sub" id="s-rate">0% fraud rate</div></div>
+    <div class="stat-card c-yellow"><div class="stat-label">Open Cases</div><div class="stat-value" id="s-cases">0</div><div class="stat-sub">Pending review</div></div>
+    <div class="stat-card c-purple"><div class="stat-label">Threats Active</div><div class="stat-value">6</div><div class="stat-sub">IOCs in feed</div></div>
+  </div>
+  <div class="grid3">
+    <div class="card" style="grid-column:span 2">
+      <div class="card-title">Live Transaction Feed <span style="color:var(--accent3);animation:pulse 2s infinite">&#9679; LIVE</span></div>
+      <div id="soc-feed"><div style="text-align:center;padding:2rem;font-family:var(--mono);font-size:11px;color:var(--text3)">No transactions yet</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Fraud Categories</div>
+      <div id="cat-breakdown"><div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Run transactions to see breakdown</div></div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card"><div class="card-title">Activity Chart</div><div class="chart-wrap"><canvas id="activityChart"></canvas></div></div>
+    <div class="card"><div class="card-title">Fraud Network</div><div id="graph-wrap" style="min-height:180px;display:flex;flex-wrap:wrap;align-items:center;padding:8px"><div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Run transactions to see network</div></div></div>
+  </div>
+</div>
+<div id="tab-dashboard" class="tab-content">
+  <div class="section-label">Performance Analytics</div>
+  <div class="grid4">
+    <div class="stat-card c-green"><div class="stat-label">Total</div><div class="stat-value" id="d-total">0</div><div class="stat-sub">All time</div></div>
+    <div class="stat-card c-red"><div class="stat-label">Fraud</div><div class="stat-value" id="d-fraud">0</div><div class="stat-sub" id="d-rate">0%</div></div>
+    <div class="stat-card c-blue"><div class="stat-label">Legitimate</div><div class="stat-value" id="d-legit">0</div><div class="stat-sub">Cleared</div></div>
+    <div class="stat-card c-yellow"><div class="stat-label">Last 24h</div><div class="stat-value" id="d-24h">0</div><div class="stat-sub" id="d-24h-sub">0 fraud</div></div>
+  </div>
+  <div class="card"><div class="card-title">Model Performance</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:4px">
+      <div><div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:4px">ROC-AUC</div><div style="font-family:var(--mono);font-size:22px;color:var(--accent)">0.9999</div></div>
+      <div><div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:4px">Precision</div><div style="font-family:var(--mono);font-size:22px;color:var(--accent2)">99.0%</div></div>
+      <div><div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:4px">Recall</div><div style="font-family:var(--mono);font-size:22px;color:var(--accent4)">99.5%</div></div>
+      <div><div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:4px">Latency</div><div style="font-family:var(--mono);font-size:22px;color:var(--accent5)">12ms</div></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px"><div class="card-title">History Chart</div><div class="chart-wrap"><canvas id="dashChart"></canvas></div></div>
+</div>
+<div id="tab-check" class="tab-content">
+  <div class="section-label">Transaction Analysis Engine</div>
+  <div class="grid2">
+    <div>
+      <div class="card">
+        <div class="card-title">Transaction Details</div>
+        <div class="form-group"><label>Amount (USD)</label><input type="number" id="f-amount" value="250" min="0" step="0.01"></div>
+        <div class="form-group"><label>Time of Day (0-23)</label><input type="number" id="f-time" value="14" min="0" max="23"></div>
+        <div class="form-group"><label>Transaction Type</label>
+          <select id="f-type"><option value="0">POS / In-store</option><option value="1">Contactless / QR</option><option value="2">ATM Withdrawal</option><option value="3">Wire Transfer</option><option value="4">Online / CNP</option></select>
+        </div>
+        <div class="form-group"><label>Merchant Category</label>
+          <select id="f-merchant"><option value="0">Grocery</option><option value="1">Gas Station</option><option value="2">Restaurant</option><option value="3">Electronics</option><option value="4">Travel</option><option value="5">ATM</option><option value="6">Online Retail</option><option value="7">Healthcare</option><option value="8">Other</option></select>
+        </div>
+        <div class="form-group"><label>Distance from Home (km)</label><input type="number" id="f-dist" value="5" min="0"></div>
+        <div class="form-group"><label>Transaction Velocity (last hour)</label><input type="number" id="f-velocity" value="1" min="0"></div>
+        <div class="form-group"><label>Device Status</label><select id="f-device"><option value="0">Known Device</option><option value="1">New / Unrecognised</option></select></div>
+        <div class="form-group"><label>Bot Pattern</label><select id="f-bot"><option value="0">Human</option><option value="1">Bot / Automated</option></select></div>
+        <div class="form-group"><label>Identity Risk</label><select id="f-identity"><option value="0">None</option><option value="1">SIM Swap / MFA Bypass</option><option value="2">Synthetic / Deepfake</option></select></div>
+        <div class="form-group"><label>Channel Risk</label><select id="f-channel"><option value="0">Normal</option><option value="1">Credential Stuffing</option><option value="2">Account Takeover</option><option value="3">Session Hijacking</option></select></div>
+        <button class="btn btn-primary" style="width:100%;margin-top:0.75rem" id="btn-analyze" onclick="analyzeTransaction()">ANALYZE TRANSACTION</button>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div class="card-title">Quick Test Scenarios</div>
+        <div class="scenarios">
+          <button class="scenario-btn" onclick="loadScenario('normal')">&#9989; Normal domestic - $45 grocery</button>
+          <button class="scenario-btn" onclick="loadScenario('cnp')">&#128179; Card-not-present - $2,400 foreign</button>
+          <button class="scenario-btn" onclick="loadScenario('atm')">&#128680; ATM fraud - $8,500 midnight 1200km</button>
+          <button class="scenario-btn" onclick="loadScenario('takeover')">&#128274; Account takeover - new device SIM swap</button>
+          <button class="scenario-btn" onclick="loadScenario('bot')">&#129302; Bot attack - credential stuffing 12tx/hr</button>
+          <button class="scenario-btn" onclick="loadScenario('synthetic')">&#128100; Synthetic identity - deepfake</button>
+          <button class="scenario-btn" onclick="loadScenario('laundering')">&#127758; Cross-border laundering - $25,000</button>
+          <button class="scenario-btn" onclick="loadScenario('qr')">&#128241; QR payment abuse - rapid contactless</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" id="result-panel" style="min-height:400px">
+        <div class="card-title">Analysis Result</div>
+        <div id="result-empty" style="display:flex;align-items:center;justify-content:center;min-height:200px"><p style="font-family:var(--mono);font-size:11px;color:var(--text3);text-align:center">Fill in the form and hit<br>ANALYZE TRANSACTION</p></div>
+        <div id="result-content" style="display:none;flex-direction:column;gap:14px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="tab-cases" class="tab-content">
+  <div class="section-label">Case Management</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Open New Case</div>
+      <div class="form-group"><label>Case Title</label><input type="text" id="c-title" placeholder="e.g. ATM Fraud Ring - Johannesburg"></div>
+      <div class="form-group"><label>Fraud Category</label><select id="c-category"><option>Payment Fraud</option><option>Digital Banking Fraud</option><option>Transfer Fraud</option><option>Identity Fraud</option><option>AI-Driven Threat</option></select></div>
+      <div class="form-group"><label>Severity</label><select id="c-severity"><option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select></div>
+      <div class="form-group"><label>Amount Involved (USD)</label><input type="number" id="c-amount" placeholder="0"></div>
+      <div class="form-group"><label>Description</label><textarea id="c-desc" placeholder="Describe the fraud incident..."></textarea></div>
+      <button class="btn btn-primary" onclick="createCase()">CREATE CASE</button>
+      <div id="case-msg" style="font-family:var(--mono);font-size:11px;margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Active Cases <button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="loadCases()">Refresh</button></div>
+      <div id="cases-list"><div style="font-family:var(--mono);font-size:11px;color:var(--text3);padding:1rem">No cases yet</div></div>
+    </div>
+  </div>
+</div>
+<div id="tab-threats" class="tab-content">
+  <div class="section-label">Threat Intelligence Feed</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Active IOCs <button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="loadThreats()">Refresh</button></div>
+      <div id="threats-list"><div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Loading...</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Category Risk Levels</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+        <div><div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;margin-bottom:4px"><span style="color:var(--text2)">Payment Fraud</span><span style="color:var(--accent3)">HIGH</span></div><div class="risk-bar-bg"><div class="risk-bar-fill" style="width:85%;background:var(--accent3)"></div></div></div>
+        <div><div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;margin-bottom:4px"><span style="color:var(--text2)">Digital Banking</span><span style="color:var(--accent3)">HIGH</span></div><div class="risk-bar-bg"><div class="risk-bar-fill" style="width:78%;background:var(--accent3)"></div></div></div>
+        <div><div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;margin-bottom:4px"><span style="color:var(--text2)">Transfer Fraud</span><span style="color:var(--accent4)">MEDIUM</span></div><div class="risk-bar-bg"><div class="risk-bar-fill" style="width:55%;background:var(--accent4)"></div></div></div>
+        <div><div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;margin-bottom:4px"><span style="color:var(--text2)">Identity Fraud</span><span style="color:var(--accent4)">MEDIUM</span></div><div class="risk-bar-bg"><div class="risk-bar-fill" style="width:62%;background:var(--accent4)"></div></div></div>
+        <div><div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;margin-bottom:4px"><span style="color:var(--text2)">AI-Driven Threats</span><span style="color:var(--accent5)">CRITICAL</span></div><div class="risk-bar-bg"><div class="risk-bar-fill" style="width:92%;background:var(--accent5)"></div></div></div>
+      </div>
+      <div style="margin-top:1.5rem">
+        <div class="card-title">Device Check</div>
+        <div class="form-group"><label>IP Address</label><input type="text" id="t-ip" value="185.220.101.1"></div>
+        <div class="form-group"><label>User Agent</label><input type="text" id="t-ua" placeholder="Browser info"></div>
+        <button class="btn btn-primary btn-sm" onclick="checkDevice()">CHECK DEVICE</button>
+        <div id="device-intel-result" style="margin-top:10px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="tab-recovery" class="tab-content">
+  <div class="section-label">Money Recovery Engine</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Recovery Actions</div>
+      <div class="form-group"><label>Amount (USD)</label><input type="number" id="r-amount" value="5000"></div>
+      <div class="form-group"><label>Account / Reference</label><input type="text" id="r-ref" placeholder="Account or transaction ID"></div>
+      <div style="display:flex;gap:8px;margin-top:1rem">
+        <div class="recovery-btn" onclick="doRecovery('freeze')"><div class="rb-icon">&#10052;</div><div class="rb-label">Freeze</div><div class="rb-sub">Block account</div></div>
+        <div class="recovery-btn" onclick="doRecovery('delay')"><div class="rb-icon">&#9203;</div><div class="rb-label">Delay</div><div class="rb-sub">Hold 24h</div></div>
+        <div class="recovery-btn" onclick="doRecovery('recall')"><div class="rb-icon">&#8617;</div><div class="rb-label">Recall</div><div class="rb-sub">SWIFT recall</div></div>
+        <div class="recovery-btn" onclick="doRecovery('flag')"><div class="rb-icon">&#9873;</div><div class="rb-label">Flag</div><div class="rb-sub">Mark review</div></div>
+      </div>
+      <div id="recovery-result" style="margin-top:1rem"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Recovery Windows</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="background:rgba(0,255,180,0.04);border:1px solid var(--border);border-radius:6px;padding:12px"><div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:4px">DOMESTIC</div><div style="font-family:var(--mono);font-size:18px;color:var(--accent)">72 hours</div><div style="font-size:11px;color:var(--text3);margin-top:4px">Optimal recovery window</div></div>
+        <div style="background:rgba(255,77,109,0.04);border:1px solid rgba(255,77,109,0.15);border-radius:6px;padding:12px"><div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:4px">CROSS-BORDER</div><div style="font-family:var(--mono);font-size:18px;color:var(--accent3)">5 days</div><div style="font-size:11px;color:var(--text3);margin-top:4px">SWIFT recall via correspondent banks</div></div>
+        <div style="background:rgba(255,214,10,0.04);border:1px solid rgba(255,214,10,0.15);border-radius:6px;padding:12px"><div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:4px">CRYPTO OFF-RAMP</div><div style="font-family:var(--mono);font-size:18px;color:var(--accent4)">24 hours</div><div style="font-size:11px;color:var(--text3);margin-top:4px">Exchange freeze request window</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="tab-geo" class="tab-content">
+  <div class="section-label">Geospatial Fraud Intelligence</div>
+  <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+    <select id="map-layer" onchange="renderMapLayer(this.value)" style="font-family:var(--mono);font-size:11px;background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:4px;outline:none">
+      <option value="all">All transactions</option><option value="fraud">Fraud only</option><option value="legit">Legitimate only</option><option value="heat">Fraud hotspots</option>
+    </select>
+    <button class="btn btn-outline btn-sm" onclick="resetGeoView()">Reset view</button>
+    <div style="display:flex;gap:14px;font-family:var(--mono);font-size:11px;color:var(--text2)">
+      <span style="color:var(--accent3)">&#9679; Fraud</span><span style="color:var(--accent)">&#9679; Legitimate</span><span style="color:var(--accent4)">&#9679; Hotspot</span>
+    </div>
+  </div>
+  <div id="fraud-map" style="height:420px;border-radius:8px;border:1px solid var(--border)"></div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px">
+    <div class="stat-card c-green"><div class="stat-label">Mapped</div><div class="stat-value" id="geo-total">0</div></div>
+    <div class="stat-card c-red"><div class="stat-label">Fraud Pins</div><div class="stat-value" id="geo-fraud">0</div></div>
+    <div class="stat-card c-blue"><div class="stat-label">Locations</div><div class="stat-value" id="geo-locs">0</div></div>
+    <div class="stat-card c-yellow"><div class="stat-label">Hotspots</div><div class="stat-value" id="geo-hot">3</div></div>
+  </div>
+</div>
+<div id="tab-atm" class="tab-content">
+  <div class="section-label">ATM Forensic Intelligence</div>
+  <div class="grid4">
+    <div class="stat-card c-green"><div class="stat-label">Total ATMs</div><div class="stat-value" id="atm-total">8</div><div class="stat-sub">In fleet</div></div>
+    <div class="stat-card c-blue"><div class="stat-label">Online</div><div class="stat-value" id="atm-online">0</div><div class="stat-sub">Operational</div></div>
+    <div class="stat-card c-yellow"><div class="stat-label">Alerts</div><div class="stat-value" id="atm-alerts">0</div><div class="stat-sub">Need review</div></div>
+    <div class="stat-card c-red"><div class="stat-label">Tampered</div><div class="stat-value" id="atm-tampered">0</div><div class="stat-sub">Critical</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">ATM Fleet Status <button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="loadATMFleet()">Refresh</button></div>
+      <div id="atm-fleet-list"><div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Loading fleet...</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Tamper Detection Events</div>
+      <div id="atm-tamper-list"><div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Loading...</div></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="card-title">ATM Remote Forensic Scan</div>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+      <div class="form-group" style="flex:1;margin-bottom:0"><label>Select ATM</label>
+        <select id="scan-atm-id" style="font-family:var(--mono);font-size:11px;background:var(--card);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:4px;outline:none;width:100%">
+          <option value="ATM-JHB-001">ATM-JHB-001 - Sandton City</option>
+          <option value="ATM-JHB-002">ATM-JHB-002 - OR Tambo Airport</option>
+          <option value="ATM-CPT-001">ATM-CPT-001 - V&amp;A Waterfront</option>
+          <option value="ATM-CPT-002">ATM-CPT-002 - Cape Town CBD</option>
+          <option value="ATM-DBN-001">ATM-DBN-001 - Gateway Theatre</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="runATMScan()">RUN FORENSIC SCAN</button>
+    </div>
+    <div id="atm-scan-result" style="margin-top:14px"></div>
+  </div>
+</div>
+<div id="tab-investigate" class="tab-content">
+  <div class="section-label">Investigation Workspace</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Transaction Timeline</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:1rem">Click any entry to investigate</div>
+      <div id="timeline-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Fraud Ring Detection <button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="loadFraudRings()">Detect Rings</button></div>
+      <div id="rings-list"><div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Run transactions to detect fraud rings</div></div>
+      <div style="margin-top:1rem">
+        <div class="card-title">Entity Graph</div>
+        <div id="network-graph-wrap" style="min-height:160px;background:rgba(0,255,180,0.02);border:1px solid var(--border);border-radius:6px;padding:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="font-family:var(--mono);font-size:11px;color:var(--text3)">No linked entities yet</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="card-title">Investigation Notes</div>
+    <div class="grid2">
+      <div>
+        <div class="form-group"><label>Case Reference</label><input type="text" id="inv-case" placeholder="CASE-1000"></div>
+        <div class="form-group"><label>Investigator</label><input type="text" id="inv-analyst" placeholder="Your name"></div>
+        <div class="form-group"><label>Notes</label><textarea id="inv-notes" placeholder="Document findings, suspicious patterns, linked accounts..."></textarea></div>
+        <button class="btn btn-primary btn-sm" onclick="saveInvNote()">SAVE NOTE</button>
+      </div>
+      <div><div class="card-title">Saved Notes</div><div id="inv-notes-list" style="max-height:220px;overflow-y:auto"></div></div>
+    </div>
+  </div>
+</div>
+<div id="tab-alerts" class="tab-content">
+  <div class="section-label">Real-Time Alert Center</div>
+  <div class="grid4">
+    <div class="stat-card c-red"><div class="stat-label">Active Alerts</div><div class="stat-value" id="alert-count">0</div><div class="stat-sub">Unacknowledged</div></div>
+    <div class="stat-card c-yellow"><div class="stat-label">ATM Alerts</div><div class="stat-value" id="atm-alert-count">2</div><div class="stat-sub">Tamper events</div></div>
+    <div class="stat-card c-purple"><div class="stat-label">Fraud Alerts</div><div class="stat-value" id="fraud-alert-count">0</div><div class="stat-sub">From transactions</div></div>
+    <div class="stat-card c-blue"><div class="stat-label">System Health</div><div class="stat-value" style="font-size:16px;color:var(--accent)">ONLINE</div><div class="stat-sub">All systems go</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Live Alert Feed <span id="alert-pulse" style="color:var(--accent3);animation:pulse 2s infinite">&#9679; LIVE</span> <button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="loadAlerts()">Refresh</button></div>
+      <div id="alerts-feed"><div style="font-family:var(--mono);font-size:11px;color:var(--text3)">No alerts yet</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Alert Configuration</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:rgba(0,255,180,0.03);border:1px solid var(--border);border-radius:4px"><div><div style="font-family:var(--mono);font-size:11px;color:var(--text)">Fraud Detection</div><div style="font-size:11px;color:var(--text3)">Trigger on fraud verdict</div></div><span class="badge badge-green">ENABLED</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:rgba(0,255,180,0.03);border:1px solid var(--border);border-radius:4px"><div><div style="font-family:var(--mono);font-size:11px;color:var(--text)">ATM Tamper Alert</div><div style="font-size:11px;color:var(--text3)">Physical security events</div></div><span class="badge badge-green">ENABLED</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:rgba(0,255,180,0.03);border:1px solid var(--border);border-radius:4px"><div><div style="font-family:var(--mono);font-size:11px;color:var(--text)">High Velocity Alert</div><div style="font-size:11px;color:var(--text3)">Rapid transaction patterns</div></div><span class="badge badge-green">ENABLED</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:rgba(0,255,180,0.03);border:1px solid var(--border);border-radius:4px"><div><div style="font-family:var(--mono);font-size:11px;color:var(--text)">Bot Attack Alert</div><div style="font-size:11px;color:var(--text3)">Automated attack detection</div></div><span class="badge badge-green">ENABLED</span></div>
+      </div>
+      <div style="margin-top:1rem">
+        <div class="form-group"><label>Polling Interval (seconds)</label><input type="number" id="alert-interval" value="10" min="5" max="60"></div>
+        <button class="btn btn-primary btn-sm" onclick="startAlertPolling()">START LIVE POLLING</button>
+        <button class="btn btn-outline btn-sm" style="margin-left:8px" onclick="stopAlertPolling()">STOP</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="tab-history" class="tab-content">
+  <div class="section-label">Transaction History</div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div class="card-title" style="margin-bottom:0">Transaction History</div>
+      <button class="btn btn-outline btn-sm" onclick="renderHistory()">Refresh</button>
+    </div>
+    <div id="history-table-wrap"><div style="text-align:center;padding:2rem;font-family:var(--mono);font-size:11px;color:var(--text3)">No transactions yet</div></div>
+  </div>
+</div>
+
+<div id="tab-telecom" class="tab-content">
+  <div class="section-label">Telecom & Phone Scam Intelligence</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">SIM Swap Events <button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="loadTelecom()">Refresh</button></div>
+      <div id="sim-swap-list"><div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Loading...</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Scam Call Database</div>
+      <div id="scam-call-list"><div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Loading...</div></div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Number Intelligence Check</div>
+      <div class="form-group"><label>Phone Number</label><input type="text" id="tel-number" placeholder="+27821234567" value="+27821234567"></div>
+      <button class="btn btn-primary btn-sm" onclick="checkTelecomNumber()">CHECK NUMBER</button>
+      <div id="tel-result" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">AI Voice Fraud Analysis</div>
+      <div class="form-group"><label>Call Source Number</label><input type="text" id="voice-number" placeholder="+27105551234"></div>
+      <div class="form-group"><label>Reported Script / Content</label><textarea id="voice-script" placeholder="Describe the call content..."></textarea></div>
+      <button class="btn btn-primary btn-sm" onclick="analyzeVoice()">ANALYZE VOICE FRAUD</button>
+      <div id="voice-result" style="margin-top:10px"></div>
+    </div>
+  </div>
+</div>
+
+<div id="tab-evidence" class="tab-content">
+  <div class="section-label">Digital Forensics &amp; Evidence Management</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Collect Evidence</div>
+      <div class="form-group"><label>Case ID</label><input type="text" id="ev-case" placeholder="CASE-1000"></div>
+      <div class="form-group"><label>Evidence Type</label>
+        <select id="ev-type" style="font-family:var(--mono);font-size:11px;background:var(--card);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:4px;outline:none;width:100%">
+          <option>TRANSACTION_LOG</option><option>SESSION_RECORDING</option><option>DEVICE_FINGERPRINT</option>
+          <option>NETWORK_LOG</option><option>CCTV_METADATA</option><option>AUTHENTICATION_LOG</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Description</label><textarea id="ev-desc" placeholder="Describe the evidence collected..."></textarea></div>
+      <button class="btn btn-primary" onclick="collectEvidence()">COLLECT &amp; HASH EVIDENCE</button>
+      <div id="ev-msg" style="font-family:var(--mono);font-size:11px;margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Evidence Chain of Custody <button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="loadEvidence()">Refresh</button></div>
+      <div id="evidence-list"><div style="font-family:var(--mono);font-size:11px;color:var(--text3)">No evidence collected yet</div></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="card-title">Session Replay &amp; Reconstruction</div>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+      <div class="form-group" style="flex:1;margin-bottom:0"><label>Session ID</label><input type="text" id="sess-id" placeholder="SESS-001" value="SESS-001"></div>
+      <button class="btn btn-primary" onclick="replaySession()">RECONSTRUCT SESSION</button>
+    </div>
+    <div id="session-replay-result" style="margin-top:14px"></div>
+  </div>
+</div>
+
+<div id="tab-behavioral" class="tab-content">
+  <div class="section-label">Behavioral Biometrics Intelligence</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Behavioral Analysis</div>
+      <div class="form-group"><label>Typing Speed (WPM)</label><input type="number" id="b-typing" value="85" min="0" max="300"></div>
+      <div class="form-group"><label>Mouse Entropy (0-1)</label><input type="number" id="b-mouse" value="0.15" min="0" max="1" step="0.01"></div>
+      <div class="form-group"><label>Session Duration (seconds)</label><input type="number" id="b-session" value="8" min="0"></div>
+      <div class="form-group"><label>Transaction Pattern</label>
+        <select id="b-pattern" style="font-family:var(--mono);font-size:11px;background:var(--card);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:4px;outline:none;width:100%">
+          <option value="normal">Normal</option><option value="rapid">Rapid / Automated</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="analyzeBehavioral()">ANALYZE BEHAVIOR</button>
+      <div id="behavioral-result" style="margin-top:14px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">User Baseline Profile</div>
+      <div class="form-group"><label>User ID</label><input type="text" id="b-userid" placeholder="user_12345" value="user_12345"></div>
+      <button class="btn btn-outline btn-sm" onclick="loadUserProfile()">LOAD PROFILE</button>
+      <div id="user-profile-result" style="margin-top:14px"></div>
+      <div style="margin-top:1.5rem">
+        <div class="card-title">Behavioral Risk Indicators</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+          <div><div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;margin-bottom:3px"><span style="color:var(--text2)">Bot Detection (typing)</span><span style="color:var(--accent3)">HIGH RISK</span></div><div class="risk-bar-bg"><div class="risk-bar-fill" style="width:85%;background:var(--accent3)"></div></div></div>
+          <div><div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;margin-bottom:3px"><span style="color:var(--text2)">Mouse Pattern Analysis</span><span style="color:var(--accent4)">MEDIUM</span></div><div class="risk-bar-bg"><div class="risk-bar-fill" style="width:55%;background:var(--accent4)"></div></div></div>
+          <div><div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;margin-bottom:3px"><span style="color:var(--text2)">Session Anomaly</span><span style="color:var(--accent3)">HIGH RISK</span></div><div class="risk-bar-bg"><div class="risk-bar-fill" style="width:78%;background:var(--accent3)"></div></div></div>
+          <div><div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;margin-bottom:3px"><span style="color:var(--text2)">Keystroke Dynamics</span><span style="color:var(--accent)">LOW</span></div><div class="risk-bar-bg"><div class="risk-bar-fill" style="width:22%;background:var(--accent)"></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</main>
+<div class="ws-status disconnected" id="ws-status">● WS DISCONNECTED</div>
+<div class="fraud-alert-banner" id="fraud-banner"></div>
+<div class="ws-status disconnected" id="ws-status">● WS DISCONNECTED</div>
+<div class="fraud-alert-banner" id="fraud-banner"></div>
+<div class="ticker">
+  <div class="ticker-inner">
+    <div class="ticker-item">SYSTEM <span class="t-val">ONLINE</span></div>
+    <div class="ticker-item">MODEL <span class="t-val">FraudShield-v4.0</span></div>
+    <div class="ticker-item">AUC <span class="t-val">0.9999</span></div>
+    <div class="ticker-item">TRANSACTIONS <span class="t-val" id="tk-total">0</span></div>
+    <div class="ticker-item">FRAUD BLOCKED <span class="t-alert" id="tk-fraud">0</span></div>
+    <div class="ticker-item">OPEN CASES <span class="t-warn" id="tk-cases">0</span></div>
+    <div class="ticker-item">THREATS <span class="t-alert">6 IOCs ACTIVE</span></div>
+    <div class="ticker-item">SYSTEM <span class="t-val">ONLINE</span></div>
+    <div class="ticker-item">MODEL <span class="t-val">FraudShield-v4.0</span></div>
+    <div class="ticker-item">TRANSACTIONS <span class="t-val" id="tk-total2">0</span></div>
+    <div class="ticker-item">FRAUD BLOCKED <span class="t-alert" id="tk-fraud2">0</span></div>
+    <div class="ticker-item">OPEN CASES <span class="t-warn" id="tk-cases2">0</span></div>
+  </div>
+</div>
+<button class="copilot-fab" onclick="toggleCopilot()" title="AI Fraud Copilot">&#129302;</button>
+<div class="copilot-panel open" id="copilot-panel">
+  <div class="copilot-head"><div class="copilot-head-title">&#129302; Fraud Copilot AI</div><button class="copilot-close" onclick="toggleCopilot()">&#10005;</button></div>
+  <div class="copilot-messages" id="copilot-messages"><div class="msg ai">Hello! I am your AI Fraud Copilot. Ask me about fraud patterns, risk scores, case management, or recovery strategies.</div></div>
+  <div class="copilot-input-row">
+    <input class="copilot-input" id="copilot-input" placeholder="Ask about fraud..." onkeydown="if(event.key==='Enter')sendCopilot()">
+    <button class="copilot-send" onclick="sendCopilot()">Send</button>
+  </div>
+</div>
+<div class="login-overlay" id="login-overlay">
+  <div class="login-box">
+    <div class="login-logo"><span>Fraud</span>Shield</div>
+    <div class="login-sub">Enterprise Banking Intelligence Platform</div>
+    <div class="login-tabs">
+      <button class="login-tab active" id="lt-signin" onclick="showLoginTab('signin')">Sign In</button>
+      <button class="login-tab" id="lt-signup" onclick="showLoginTab('signup')">Sign Up</button>
+    </div>
+    <div id="signin-form">
+      <div class="login-group"><label>Username</label><input type="text" id="login-username" placeholder="Enter username" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <div class="login-group"><label>Password</label><input type="password" id="login-password" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="login-btn" id="login-btn" onclick="doLogin()">SIGN IN</button>
+    </div>
+    <div id="signup-form" style="display:none">
+      <div class="login-group"><label>Full Name</label><input type="text" id="su-name" placeholder="Your full name"></div>
+      <div class="login-group"><label>Username</label><input type="text" id="su-user" placeholder="Choose a username"></div>
+      <div class="login-group"><label>Password</label><input type="password" id="su-pass" placeholder="Min 6 characters"></div>
+      <div class="login-group"><label>Confirm Password</label><input type="password" id="su-pass2" placeholder="Confirm password"></div>
+      <button class="login-btn" onclick="doSignup()">CREATE ACCOUNT</button>
+    </div>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.js"></script>
+<script>
+var API='http://localhost:5000';
+var state={transactions:JSON.parse(localStorage.getItem('fs_tx')||'[]'),chart:null,dashChart:null};
+function save(){localStorage.setItem('fs_tx',JSON.stringify(state.transactions));}
+function getToken(){return localStorage.getItem('fs_token')||'';}
+function authHeaders(){return{'Content-Type':'application/json','Authorization':'Bearer '+getToken()};}
+function switchTab(tab,btn){
+  document.querySelectorAll('.tab-content').forEach(function(t){t.classList.remove('active');});
+  document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
+  document.getElementById('tab-'+tab).classList.add('active');
+  btn.classList.add('active');
+  if(tab==='soc'||tab==='dashboard')updateDashboard();
+  if(tab==='history')renderHistoryFromDB();
+  if(tab==='threats')loadThreats();
+  if(tab==='cases')loadCases();
+  if(tab==='geo'){initGeoMap();renderMapLayer(document.getElementById('map-layer')?document.getElementById('map-layer').value:'all');}
+  if(tab==='atm')loadATMFleet();
+  if(tab==='investigate'){loadInvestigationTimeline();updateNetworkGraph();renderInvNotes();}
+  if(tab==='alerts')loadAlerts();
+  if(tab==='telecom')loadTelecom();
+  if(tab==='evidence')loadEvidence();
+  if(tab==='behavioral')loadBehavioral();
+}
+function showLoginTab(tab){
+  var isIn=tab==='signin';
+  document.getElementById('signin-form').style.display=isIn?'block':'none';
+  document.getElementById('signup-form').style.display=isIn?'none':'block';
+  document.getElementById('lt-signin').className='login-tab'+(isIn?' active':'');
+  document.getElementById('lt-signup').className='login-tab'+(!isIn?' active':'');
+  document.getElementById('login-err').textContent='';
+}
+async function doLogin(){
+  var btn=document.getElementById('login-btn');
+  var err=document.getElementById('login-err');
+  var user=document.getElementById('login-username').value.trim();
+  var pass=document.getElementById('login-password').value;
+  if(!user||!pass){err.textContent='Enter username and password';return;}
+  btn.disabled=true;btn.textContent='Signing in...';err.textContent='';
+  try{
+    var res=await fetch(API+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass})});
+    var data=await res.json();
+    if(data.access_token){
+      localStorage.setItem('fs_token',data.access_token);localStorage.setItem('fs_user',data.username);
+      document.getElementById('login-overlay').style.display='none';
+      document.getElementById('badge-user').textContent='&#9679; '+data.username;
+      updateDashboard();    } else {
+      var users=JSON.parse(localStorage.getItem('fs_local_users')||'{}');
+      if(users[user]&&users[user].password===btoa(pass)){
+        localStorage.setItem('fs_token','local_'+user);localStorage.setItem('fs_user',users[user].name||user);
+        document.getElementById('login-overlay').style.display='none';
+        document.getElementById('badge-user').textContent='&#9679; '+(users[user].name||user);
+        updateDashboard();
+      } else {err.textContent=data.error||'Invalid credentials';}
+    }
+  } catch(e){
+    var users=JSON.parse(localStorage.getItem('fs_local_users')||'{}');
+    if(users[user]&&users[user].password===btoa(pass)){
+      localStorage.setItem('fs_token','local_'+user);localStorage.setItem('fs_user',users[user].name||user);
+      document.getElementById('login-overlay').style.display='none';
+      document.getElementById('badge-user').textContent='&#9679; '+(users[user].name||user);
+      updateDashboard();
+    } else {err.textContent='Backend offline. Check credentials.';}
+  }
+  btn.disabled=false;btn.textContent='SIGN IN';
+}
+function doSignup(){
+  var name=document.getElementById('su-name').value.trim();
+  var user=document.getElementById('su-user').value.trim();
+  var pass=document.getElementById('su-pass').value;
+  var pass2=document.getElementById('su-pass2').value;
+  var err=document.getElementById('login-err');
+  if(!name||!user||!pass){err.textContent='All fields required';return;}
+  if(pass!==pass2){err.textContent='Passwords do not match';return;}
+  if(pass.length<6){err.textContent='Password must be 6+ characters';return;}
+  var users=JSON.parse(localStorage.getItem('fs_local_users')||'{}');
+  if(users[user]){err.textContent='Username already exists';return;}
+  users[user]={name:name,password:btoa(pass)};
+  localStorage.setItem('fs_local_users',JSON.stringify(users));
+  err.style.color='var(--accent)';err.textContent='Account created! Sign in now.';
+  setTimeout(function(){err.style.color='var(--accent3)';showLoginTab('signin');},1500);
+}
+function doLogout(){if(liveStreamTimer){clearInterval(liveStreamTimer);liveStreamTimer=null;}
+  localStorage.removeItem('fs_token');localStorage.removeItem('fs_user');
+  document.getElementById('login-overlay').style.display='flex';
+  document.getElementById('login-password').value='';
+  document.getElementById('login-err').textContent='';
+  document.getElementById('badge-user').textContent='&#9679; guest';
+}
+function checkAuth(){
+  var token=localStorage.getItem('fs_token');var user=localStorage.getItem('fs_user');
+  if(token&&user){document.getElementById('login-overlay').style.display='none';document.getElementById('badge-user').textContent='&#9679; '+user;}
+  else{document.getElementById('login-overlay').style.display='flex';}
+}
+function localScore(d){
+  var s=0;
+  if(d.amount>10000)s+=35;else if(d.amount>5000)s+=22;else if(d.amount>2000)s+=12;else if(d.amount>500)s+=5;
+  if(d.hour>=0&&d.hour<=5)s+=25;else if(d.hour>=22)s+=10;
+  var tr={0:2,1:8,2:18,3:22,4:12};s+=(tr[d.type]||5);
+  var mr=[2,8,3,18,15,25,12,5,7];s+=(mr[parseInt(d.merchant)]||5);
+  if(d.distance>1000)s+=30;else if(d.distance>500)s+=18;else if(d.distance>100)s+=8;
+  if(d.velocity>10)s+=25;else if(d.velocity>5)s+=15;else if(d.velocity>3)s+=8;
+  if(d.device)s+=15;if(d.bot)s+=20;
+  if(d.identity>0)s+=d.identity*15;if(d.channel>0)s+=d.channel*10;
+  return Math.min(100,Math.round(s));
+}
+function classify(s){return s>=65?'fraud':s>=35?'suspicious':'legit';}
+var scenarios={
+  normal:{amount:45,hour:14,type:'0',merchant:'0',dist:2,velocity:1,device:0,bot:0,identity:0,channel:0},
+  cnp:{amount:2400,hour:3,type:'4',merchant:'6',dist:850,velocity:4,device:1,bot:0,identity:0,channel:0},
+  atm:{amount:8500,hour:0,type:'2',merchant:'5',dist:1200,velocity:7,device:0,bot:0,identity:0,channel:0},
+  takeover:{amount:500,hour:10,type:'4',merchant:'6',dist:5,velocity:8,device:1,bot:0,identity:1,channel:2},
+  bot:{amount:300,hour:2,type:'4',merchant:'6',dist:900,velocity:12,device:1,bot:1,identity:0,channel:1},
+  synthetic:{amount:1200,hour:14,type:'4',merchant:'6',dist:2,velocity:2,device:1,bot:0,identity:2,channel:0},
+  laundering:{amount:25000,hour:2,type:'3',merchant:'8',dist:5,velocity:2,device:0,bot:0,identity:0,channel:0},
+  qr:{amount:180,hour:11,type:'1',merchant:'2',dist:3,velocity:9,device:0,bot:1,identity:0,channel:0}
+};
+function loadScenario(key){
+  var s=scenarios[key];
+  document.getElementById('f-amount').value=s.amount;document.getElementById('f-time').value=s.hour;
+  document.getElementById('f-type').value=s.type;document.getElementById('f-merchant').value=s.merchant;
+  document.getElementById('f-dist').value=s.dist;document.getElementById('f-velocity').value=s.velocity;
+  function fset(id,v){var el=document.getElementById(id);if(el)el.value=v;}
+  fset('f-device',s.device);fset('f-bot',s.bot);fset('f-identity',s.identity);fset('f-channel',s.channel);
+  switchTab('check',document.querySelectorAll('.nav-btn')[2]);analyzeTransaction();
+}
+async function analyzeTransaction(){
+  var btn=document.getElementById('btn-analyze');btn.textContent='Analyzing...';btn.classList.add('loading');
+  var data={
+    amount:parseFloat(document.getElementById('f-amount').value)||0,hour:parseInt(document.getElementById('f-time').value)||0,
+    type:document.getElementById('f-type').value,merchant:document.getElementById('f-merchant').value,
+    distance:parseFloat(document.getElementById('f-dist').value)||0,velocity:parseInt(document.getElementById('f-velocity').value)||1,
+    device:parseInt(document.getElementById('f-device')?document.getElementById('f-device').value:0),
+    bot:parseInt(document.getElementById('f-bot')?document.getElementById('f-bot').value:0),
+    identity:parseInt(document.getElementById('f-identity')?document.getElementById('f-identity').value:0),
+    channel:parseInt(document.getElementById('f-channel')?document.getElementById('f-channel').value:0),avg7d:100
+  };
+  var score,verdict,confidence,category='Unknown',detail='';
+  try{
+    var res=await fetch(API+'/predict/',{method:'POST',headers:authHeaders(),body:JSON.stringify({
+      amount:data.amount,time_of_day:data.hour,transaction_type:parseInt(data.type),merchant_category:parseInt(data.merchant),
+      distance_from_home:data.distance,num_transactions_today:data.velocity,avg_amount_last_7d:data.avg7d,
+      is_foreign:data.distance>200?1:0,new_device:data.device,is_bot_pattern:data.bot,identity_risk:data.identity,channel_risk:data.channel
+    })});
+    if(res.ok){var j=await res.json();score=Math.round((j.confidence||0)*100);verdict=j.is_fraud?'fraud':'legit';confidence=Math.round((j.confidence||0)*100);category=j.fraud_category||'Unknown';detail=j.fraud_detail||'';}
+    else throw new Error();
+  }catch(e){score=localScore(data);verdict=classify(score);confidence=score;category=data.bot?'AI-Driven Threat':data.identity>0?'Identity Fraud':data.channel>0?'Digital Banking Fraud':'Payment Fraud';}
+  await new Promise(function(r){setTimeout(r,400);});
+  showResult(data,score,verdict,confidence,category,detail);
+  var tx={id:Date.now(),amount:data.amount,type:parseInt(data.type),merchant:parseInt(data.merchant),hour:data.hour,distance:data.distance,velocity:data.velocity,device:data.device,bot:data.bot,identity:data.identity,channel:data.channel,score:score,verdict:verdict,confidence:confidence,category:category,ts:new Date().toISOString()};
+  state.transactions.unshift(tx);if(state.transactions.length>200)state.transactions.pop();
+  save();updateTicker();updateSOCFeed();
+  if(verdict==='fraud'){try{await fetch(API+'/intel/alerts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'FRAUD_DETECTED',severity:'HIGH',message:'Fraud: $'+data.amount+' '+category,amount:data.amount,category:category})});}catch(e){}}
+  btn.textContent='ANALYZE TRANSACTION';btn.classList.remove('loading');
+}
+function showResult(data,score,verdict,confidence,category,detail){lastAnalysis={amount:data.amount,category:category};
+  document.getElementById('result-empty').style.display='none';
+  var rc=document.getElementById('result-content');rc.style.display='flex';rc.style.flexDirection='column';rc.style.gap='12px';
+  var colors={fraud:'var(--accent3)',suspicious:'var(--accent4)',legit:'var(--accent)'};
+  var labels={fraud:'FRAUD DETECTED',suspicious:'SUSPICIOUS',legit:'LEGITIMATE'};
+  var tnames=['POS','Contactless/QR','ATM','Wire','Online/CNP'];
+  var col=colors[verdict];
+  rc.innerHTML='<div style="border-radius:6px;padding:1rem;background:rgba('+(verdict==='fraud'?'255,77,109':verdict==='suspicious'?'255,214,10':'0,255,180')+',0.05);border:1px solid rgba('+(verdict==='fraud'?'255,77,109':verdict==='suspicious'?'255,214,10':'0,255,180')+',0.2);display:flex;align-items:center;gap:14px"><div style="font-size:32px">'+(verdict==='fraud'?'&#128680;':verdict==='suspicious'?'&#9888;':'&#9989;')+'</div><div><div style="font-family:var(--mono);font-size:18px;font-weight:700;color:'+col+'">'+labels[verdict]+'</div><div style="font-size:12px;color:var(--text2);margin-top:3px">Score: '+score+'/100 | '+category+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px">'+detail+'</div></div></div>'
+  +'<div><div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:4px"><span>Risk Score</span><span>'+score+'/100</span></div><div class="risk-bar-bg" style="height:8px"><div class="risk-bar-fill" id="risk-bar" style="width:0%;background:'+col+'"></div></div></div>'
+  +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+  +[['Amount','$'+data.amount.toLocaleString(),data.amount>2000],['Time',data.hour+':00h',data.hour<6||data.hour>22],['Distance',data.distance+' km',data.distance>200],['Velocity',data.velocity+'/hr',data.velocity>3],['Type',tnames[parseInt(data.type)]||'Unknown',parseInt(data.type)>=2],['Device',data.device?'New Device':'Known',data.device==1],['Bot Pattern',data.bot?'Detected':'None',data.bot==1],['Identity',['None','SIM Swap','Synthetic'][data.identity]||'None',data.identity>0]].map(function(f){return '<div style="background:rgba(0,255,180,0.03);border:1px solid var(--border);border-radius:4px;padding:8px 10px"><div style="font-family:var(--mono);font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">'+f[0]+'</div><div style="font-family:var(--mono);font-size:13px;color:'+(f[2]?'var(--accent3)':'var(--accent)')+'">'+f[1]+' '+(f[2]?'[!]':'[ok]')+'</div></div>';}).join('')+'</div>'
+  +'<div style="background:rgba(0,200,255,0.04);border:1px solid rgba(0,200,255,0.15);border-radius:6px;padding:12px"><div style="font-family:var(--mono);font-size:10px;color:var(--accent2);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">AI Assessment</div><div style="font-size:12px;color:var(--text2);line-height:1.6">'+(verdict==='fraud'?'HIGH RISK: Multiple fraud indicators detected. Recommend immediate case creation.':verdict==='suspicious'?'MODERATE RISK: Score '+score+'/100 warrants secondary review.':'LOW RISK: Transaction cleared. All indicators within normal parameters.')+'</div></div>'
+  +(verdict==='fraud'?'<button class="btn btn-danger btn-sm" onclick="doCreateCase()">CREATE CASE FROM THIS TRANSACTION</button>':'');
+  setTimeout(function(){var b=document.getElementById('risk-bar');if(b)b.style.width=score+'%';},50);
+}
+async function createCaseFromTx(amount,category){
+  try{await fetch(API+'/intel/cases',{method:'POST',headers:authHeaders(),body:JSON.stringify({title:'Fraud - '+category,category:category,severity:'HIGH',amount:amount,description:'Auto-created from analysis'})});alert('Case created!');}catch(e){alert('Case saved locally.');}
+}
+var dashChartInst=null;
+function updateDashboard(){
+  var txs=state.transactions;var total=txs.length;
+  var fraud=txs.filter(function(t){return t.verdict==='fraud';}).length;
+  var legit=txs.filter(function(t){return t.verdict==='legit';}).length;
+  var cutoff=new Date(Date.now()-86400000).toISOString();
+  var recent=txs.filter(function(t){return t.ts>cutoff;});
+  var rFraud=recent.filter(function(t){return t.verdict==='fraud';}).length;
+  ['s-total','d-total'].forEach(function(id){animCount(id,total);});
+  ['s-fraud','d-fraud'].forEach(function(id){animCount(id,fraud);});
+  animCount('d-legit',legit);animCount('d-24h',recent.length);
+  ['s-rate','d-rate'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=(total?Math.round(fraud/total*100):0)+'% fraud rate';});
+  var sub=document.getElementById('d-24h-sub');if(sub)sub.textContent=rFraud+' fraud';
+  animCount('s-cases',JSON.parse(localStorage.getItem('fs_cases')||'[]').length);
+  renderActivityChart(txs.slice(0,20).reverse());renderDashChart(txs.slice(0,20).reverse());
+  updateSOCFeed();updateCatBreakdown();updateGraph();
+}
+function animCount(id,target){
+  var el=document.getElementById(id);if(!el)return;
+  var start=parseInt(el.textContent)||0;var diff=target-start;if(!diff)return;
+  var i=0;var iv=setInterval(function(){i++;el.textContent=Math.round(start+diff*(i/20));if(i>=20)clearInterval(iv);},20);
+}
+function renderActivityChart(txs){
+  var ctx=document.getElementById('activityChart');if(!ctx)return;var c=ctx.getContext('2d');
+  if(state.chart)state.chart.destroy();if(!txs.length)return;
+  state.chart=new Chart(c,{type:'bar',data:{labels:txs.map(function(_,i){return '#'+(i+1);}),datasets:[{label:'Risk',data:txs.map(function(t){return t.score;}),backgroundColor:txs.map(function(t){return t.verdict==='fraud'?'#ff4d6d':t.verdict==='suspicious'?'#ffd60a':'#00ffb4';}),borderWidth:0,borderRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(0,255,180,0.05)'},ticks:{color:'#3d6b5c',font:{size:9}}},y:{min:0,max:100,grid:{color:'rgba(0,255,180,0.05)'},ticks:{color:'#3d6b5c',font:{size:9}}}}}});
+}
+function renderDashChart(txs){
+  var ctx=document.getElementById('dashChart');if(!ctx)return;var c=ctx.getContext('2d');
+  if(dashChartInst)dashChartInst.destroy();if(!txs.length)return;
+  dashChartInst=new Chart(c,{type:'line',data:{labels:txs.map(function(_,i){return '#'+(i+1);}),datasets:[{label:'Risk Score',data:txs.map(function(t){return t.score;}),borderColor:'#00ffb4',backgroundColor:'rgba(0,255,180,0.08)',tension:0.4,pointRadius:3,pointBackgroundColor:txs.map(function(t){return t.verdict==='fraud'?'#ff4d6d':'#00ffb4';})}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(0,255,180,0.05)'},ticks:{color:'#3d6b5c',font:{size:9}}},y:{min:0,max:100,grid:{color:'rgba(0,255,180,0.05)'},ticks:{color:'#3d6b5c',font:{size:9}}}}}});
+}
+function updateSOCFeed(){
+  var feed=document.getElementById('soc-feed');if(!feed)return;
+  var txs=state.transactions.slice(0,10);if(!txs.length)return;
+  var mn=['Grocery','Gas','Restaurant','Electronics','Travel','ATM','Online','Healthcare','Other'];
+  var tn=['POS','QR','ATM','Wire','CNP'];
+  feed.innerHTML=txs.map(function(t){return '<div class="feed-row"><span class="badge badge-'+(t.verdict==='fraud'?'red':t.verdict==='suspicious'?'yellow':'green')+'">'+t.verdict.toUpperCase()+'</span><span class="mono" style="min-width:80px;color:var(--text)">$'+t.amount.toLocaleString()+'</span><span style="flex:1;color:var(--text2)">'+(tn[t.type]||'TXN')+' - '+(mn[t.merchant]||'Other')+'</span><span class="mono" style="color:'+(t.verdict==='fraud'?'var(--accent3)':t.verdict==='suspicious'?'var(--accent4)':'var(--accent)')+'">'+t.score+'/100</span><span class="mono" style="color:var(--text3);font-size:10px">'+new Date(t.ts).toLocaleTimeString()+'</span></div>';}).join('');
+}
+function updateCatBreakdown(){
+  var el=document.getElementById('cat-breakdown');if(!el)return;
+  var cats={};state.transactions.filter(function(t){return t.verdict==='fraud';}).forEach(function(t){var c=t.category||'Unknown';cats[c]=(cats[c]||0)+1;});
+  if(!Object.keys(cats).length){el.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">No fraud detected yet</div>';return;}
+  el.innerHTML=Object.entries(cats).sort(function(a,b){return b[1]-a[1];}).map(function(e){return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;margin-bottom:3px"><span style="color:var(--text2)">'+e[0]+'</span><span style="color:var(--accent3)">'+e[1]+'</span></div><div class="risk-bar-bg"><div class="risk-bar-fill" style="width:'+Math.min(100,e[1]*20)+'%;background:var(--accent3)"></div></div></div>';}).join('');
+}
+function updateGraph(){
+  var wrap=document.getElementById('graph-wrap');if(!wrap)return;
+  var fraudTxs=state.transactions.filter(function(t){return t.verdict==='fraud';}).slice(0,8);
+  var legitTxs=state.transactions.filter(function(t){return t.verdict==='legit';}).slice(0,4);
+  if(!fraudTxs.length&&!legitTxs.length)return;
+  wrap.innerHTML=fraudTxs.map(function(t){return '<div class="graph-node"><div class="node-circle node-fraud">$'+Math.round(t.amount/1000)+'K</div><div class="node-label">FRAUD</div></div>';}).join('')+legitTxs.map(function(t){return '<div class="graph-node"><div class="node-circle node-legit">$'+Math.round(t.amount)+'</div><div class="node-label">LEGIT</div></div>';}).join('');
+}
+async function createCase(){
+  var title=document.getElementById('c-title').value.trim();var category=document.getElementById('c-category').value;
+  var severity=document.getElementById('c-severity').value;var amount=parseFloat(document.getElementById('c-amount').value)||0;
+  var description=document.getElementById('c-desc').value.trim();var msg=document.getElementById('case-msg');
+  if(!title){msg.style.color='var(--accent3)';msg.textContent='Title required';return;}
+  try{
+    var res=await fetch(API+'/intel/cases',{method:'POST',headers:authHeaders(),body:JSON.stringify({title:title,category:category,severity:severity,amount:amount,description:description})});
+    var data=await res.json();msg.style.color='var(--accent)';msg.textContent='Case '+data.id+' created!';
+    document.getElementById('c-title').value='';document.getElementById('c-desc').value='';loadCases();updateTicker();
+  }catch(e){
+    var cases=JSON.parse(localStorage.getItem('fs_cases')||'[]');
+    cases.unshift({id:'CASE-'+(1000+cases.length),title:title,category:category,severity:severity,amount:amount,status:'OPEN',created_at:new Date().toISOString()});
+    localStorage.setItem('fs_cases',JSON.stringify(cases));msg.style.color='var(--accent)';msg.textContent='Case saved locally';loadCases();
+  }
+}
+async function loadCases(){
+  var list=document.getElementById('cases-list');var cases=[];
+  try{var res=await fetch(API+'/intel/cases',{headers:authHeaders()});var rd=await res.json();cases=Array.isArray(rd)?rd:[];}catch(e){cases=JSON.parse(localStorage.getItem('fs_cases')||'[]');}
+  animCount('s-cases',cases.length);
+  ['tk-cases','tk-cases2'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=cases.filter(function(c){return c.status==='OPEN';}).length;});
+  if(!cases.length){list.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3);padding:1rem">No cases yet</div>';return;}
+  list.innerHTML=cases.slice(-10).reverse().map(function(c){return '<div class="case-row"><span class="badge badge-'+(c.severity==='CRITICAL'?'red':c.severity==='HIGH'?'yellow':'blue')+'">'+c.severity+'</span><span style="flex:1;font-size:12px">'+c.title+'</span><span class="badge badge-'+(c.status==='OPEN'?'red':'green')+'" style="font-size:9px">'+c.status+'</span><span class="mono" style="font-size:10px;color:var(--text3)">'+new Date(c.created_at).toLocaleDateString()+'</span></div>';}).join('');
+}
+async function loadThreats(){
+  var list=document.getElementById('threats-list');
+  try{var res=await fetch(API+'/intel/threats',{headers:authHeaders()});var data=await res.json();var feed=data.feed||[];list.innerHTML=feed.map(function(t){return '<div class="threat-row"><span class="badge badge-'+(t.type==='IP'?'red':t.type==='DOMAIN'?'yellow':'purple')+'">'+t.type+'</span><span class="mono" style="flex:1;font-size:11px">'+t.indicator+'</span><span style="font-size:11px;color:var(--text2)">'+t.category+'</span><div class="conf-bar"><div class="conf-fill" style="width:'+t.confidence+'%"></div></div><span class="mono" style="font-size:10px;color:var(--accent3)">'+t.confidence+'%</span></div>';}).join('');}
+  catch(e){list.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Backend offline</div>';}
+}
+async function checkDevice(){
+  var ip=document.getElementById('t-ip').value.trim();var ua=document.getElementById('t-ua').value.trim();var result=document.getElementById('device-intel-result');
+  try{var res=await fetch(API+'/intel/device',{method:'POST',headers:authHeaders(),body:JSON.stringify({ip_address:ip,user_agent:ua,is_bot_pattern:0})});var d=await res.json();
+    result.innerHTML='<div style="background:rgba(0,255,180,0.03);border:1px solid var(--border);border-radius:6px;padding:12px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-bottom:3px">FINGERPRINT</div><div class="mono" style="font-size:11px;color:var(--accent)">'+d.fingerprint+'</div></div><div><div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-bottom:3px">RISK</div><div class="mono" style="font-size:11px;color:'+(d.device_risk==='HIGH'?'var(--accent3)':d.device_risk==='MEDIUM'?'var(--accent4)':'var(--accent)')+'">'+d.device_risk+'</div></div><div><div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-bottom:3px">VPN/PROXY</div><div class="mono" style="font-size:11px;color:'+(d.is_vpn?'var(--accent4)':'var(--accent)')+'">'+( d.is_vpn?'DETECTED':'CLEAN')+'</div></div><div><div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-bottom:3px">THREAT INTEL</div><div class="mono" style="font-size:11px;color:'+(d.is_known_threat?'var(--accent3)':'var(--accent)')+'">'+( d.is_known_threat?'KNOWN BAD IP':'CLEAN')+'</div></div></div></div>';}
+  catch(e){result.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Backend offline</div>';}
+}
+async function doRecovery(action){
+  var amount=parseFloat(document.getElementById('r-amount').value)||0;var ref=document.getElementById('r-ref').value.trim();
+  var result=document.getElementById('recovery-result');result.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Processing...</div>';
+  try{var res=await fetch(API+'/intel/recovery',{method:'POST',headers:authHeaders(),body:JSON.stringify({action:action,amount:amount,reference:ref})});var d=await res.json();
+    result.innerHTML='<div style="background:rgba(0,255,180,0.05);border:1px solid rgba(0,255,180,0.2);border-radius:6px;padding:12px"><div style="font-family:var(--mono);font-size:10px;color:var(--accent);margin-bottom:6px">'+d.status+'</div><div style="font-size:12px;color:var(--text)">'+d.action+'</div><div style="display:flex;gap:16px;margin-top:8px"><div><div style="font-family:var(--mono);font-size:9px;color:var(--text2)">RECOVERABLE</div><div style="font-family:var(--mono);color:var(--accent)">$'+(d.recoverable||0).toLocaleString()+'</div></div><div><div style="font-family:var(--mono);font-size:9px;color:var(--text2)">WINDOW</div><div style="font-family:var(--mono);color:var(--accent4)">'+d.window+'</div></div></div></div>';}
+  catch(e){result.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Backend offline</div>';}
+}
+async function renderHistoryFromDB(){
+  var wrap=document.getElementById('history-table-wrap');
+  try{
+    var res=await fetch(API+'/predict/history?limit=50',{headers:authHeaders()});
+    if(!res.ok)throw new Error();
+    var txns=await res.json();
+    if(!txns.length){wrap.innerHTML='<div style="text-align:center;padding:2rem;font-family:var(--mono);font-size:11px;color:var(--text3)">No transactions in database yet</div>';return;}
+    var mn=['Grocery','Gas','Restaurant','Electronics','Travel','ATM','Online','Healthcare','Other'];
+    var tn=['POS','QR','ATM','Wire','CNP'];
+    wrap.innerHTML='<table><thead><tr><th>ID</th><th>Amount</th><th>Verdict</th><th>Score</th><th>Category</th><th>IP</th><th>Timestamp</th></tr></thead><tbody>'
+    +txns.map(function(t){return '<tr><td class="mono" style="color:var(--text3)">#'+t.id+'</td><td class="mono">$'+t.amount.toLocaleString()+'</td><td><span class="badge badge-'+(t.is_fraud?'red':'green')+'">'+(t.is_fraud?'FRAUD':'LEGIT')+'</span></td><td class="mono" style="color:'+(t.confidence>0.64?'var(--accent3)':t.confidence>0.34?'var(--accent4)':'var(--accent)')+'">'+Math.round((t.confidence||0)*100)+'/100</td><td style="font-size:11px">'+(t.fraud_category||'Unknown')+'</td><td class="mono" style="font-size:10px;color:var(--text2)">'+(t.ip_address||'N/A')+'</td><td class="mono" style="color:var(--text3);font-size:10px">'+new Date(t.created_at).toLocaleString()+'</td></tr>';}).join('')
+    +'</tbody></table>';
+  }catch(e){renderHistory();}
+}
+function renderHistoryTab(){renderHistoryFromDB();}
+function renderHistory(){
+  var wrap=document.getElementById('history-table-wrap');var txs=state.transactions;
+  if(!txs.length){wrap.innerHTML='<div style="text-align:center;padding:2rem;font-family:var(--mono);font-size:11px;color:var(--text3)">No transactions yet</div>';return;}
+  var mn=['Grocery','Gas','Restaurant','Electronics','Travel','ATM','Online','Healthcare','Other'];var tn=['POS','QR','ATM','Wire','CNP'];
+  wrap.innerHTML='<table><thead><tr><th>ID</th><th>Amount</th><th>Verdict</th><th>Score</th><th>Category</th><th>Type</th><th>Timestamp</th></tr></thead><tbody>'+txs.map(function(t){return '<tr><td class="mono" style="color:var(--text3)">'+String(t.id).slice(-6)+'</td><td class="mono">$'+t.amount.toLocaleString()+'</td><td><span class="badge badge-'+(t.verdict==='fraud'?'red':t.verdict==='suspicious'?'yellow':'green')+'">'+t.verdict.toUpperCase()+'</span></td><td class="mono" style="color:'+(t.score>64?'var(--accent3)':t.score>34?'var(--accent4)':'var(--accent)')+'">'+t.score+'/100</td><td style="font-size:11px">'+(t.category||'Unknown')+'</td><td>'+(tn[t.type]||'TXN')+'</td><td class="mono" style="color:var(--text3);font-size:10px">'+new Date(t.ts).toLocaleString()+'</td></tr>';}).join('')+'</tbody></table>';
+}
+function updateTicker(){
+  var total=state.transactions.length;var fraud=state.transactions.filter(function(t){return t.verdict==='fraud';}).length;
+  ['tk-total','tk-total2'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=total;});
+  ['tk-fraud','tk-fraud2'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=fraud;});
+}
+var geoMap=null,geoMarkers=[],geoCircles=[];
+function resetGeoView(){if(geoMap)geoMap.setView([-20,25],3);}
+function initGeoMap(){
+  if(geoMap)return;
+  geoMap=L.map('fraud-map',{scrollWheelZoom:false}).setView([-20,25],3);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OpenStreetMap',maxZoom:18}).addTo(geoMap);
+  renderMapLayer('all');
+}
+function clearGeoMap(){geoMarkers.forEach(function(m){geoMap.removeLayer(m);});geoCircles.forEach(function(c){geoMap.removeLayer(c);});geoMarkers=[];geoCircles=[];}
+function renderMapLayer(mode){
+  if(!geoMap)return;clearGeoMap();
+  var HOTSPOTS=[{lat:-26.2041,lng:28.0473,radius:180000,label:'Joburg fraud cluster'},{lat:51.5074,lng:-0.1278,radius:120000,label:'London SIM swap ring'},{lat:6.5244,lng:3.3792,radius:200000,label:'West Africa mule network'}];
+  if(mode==='heat'){HOTSPOTS.forEach(function(h){var c=L.circle([h.lat,h.lng],{radius:h.radius,color:'#ff4d6d',fillColor:'#ff4d6d',fillOpacity:0.15,weight:1.5}).addTo(geoMap);c.bindPopup('<b>'+h.label+'</b>');geoCircles.push(c);});document.getElementById('geo-total').textContent=HOTSPOTS.length;document.getElementById('geo-fraud').textContent=HOTSPOTS.length;document.getElementById('geo-locs').textContent=HOTSPOTS.length;return;}
+  var txs=state.transactions;
+  if(mode==='fraud')txs=txs.filter(function(t){return t.verdict==='fraud';});
+  if(mode==='legit')txs=txs.filter(function(t){return t.verdict==='legit';});
+  var mn=['Grocery','Gas','Restaurant','Electronics','Travel','ATM','Online','Healthcare','Other'];
+  txs.forEach(function(t){
+    var isFraud=t.verdict==='fraud';var baseLat=-26.2+(Math.random()-0.5)*40;var baseLng=28.0+(Math.random()-0.5)*60;
+    var lat=t.distance>200?baseLat+(Math.random()-0.5)*20:baseLat+(Math.random()-0.5)*2;
+    var lng=t.distance>200?baseLng+(Math.random()-0.5)*20:baseLng+(Math.random()-0.5)*2;
+    var col=isFraud?'#ff4d6d':'#00ffb4';var sz=isFraud?Math.min(14,7+t.amount/3000):7;
+    var icon=L.divIcon({className:'',html:'<div style="width:'+(sz*2)+'px;height:'+(sz*2)+'px;border-radius:50%;background:'+col+';opacity:0.85;border:1.5px solid '+(isFraud?'#a32d2d':'#0f6e56')+'"></div>',iconSize:[sz*2,sz*2],iconAnchor:[sz,sz]});
+    var m=L.marker([lat,lng],{icon:icon}).addTo(geoMap);
+    m.bindPopup('<b>'+t.verdict.toUpperCase()+'</b><br>$'+t.amount.toLocaleString()+' '+(mn[t.merchant]||'Other')+'<br>Score: '+t.score+'/100');
+    geoMarkers.push(m);
+  });
+  document.getElementById('geo-total').textContent=txs.length;
+  document.getElementById('geo-fraud').textContent=txs.filter(function(t){return t.verdict==='fraud';}).length;
+  document.getElementById('geo-locs').textContent=txs.length;
+}
+async function loadATMFleet(){
+  try{
+    var res=await fetch(API+'/atm/fleet',{headers:authHeaders()});var data=await res.json();
+    document.getElementById('atm-total').textContent=data.total;document.getElementById('atm-online').textContent=data.online;
+    document.getElementById('atm-alerts').textContent=data.alerts;document.getElementById('atm-tampered').textContent=data.tampered;
+    document.getElementById('atm-fleet-list').innerHTML=data.fleet.map(function(a){return '<div class="feed-row"><span class="badge badge-'+(a.status==='ONLINE'?'green':a.status==='TAMPERED'?'red':'yellow')+'">'+a.status+'</span><span class="mono" style="flex:1;font-size:11px">'+a.id+'</span><span style="font-size:11px;color:var(--text2)">'+a.location+'</span><span class="mono" style="font-size:10px;color:'+(a.risk==='LOW'?'var(--accent)':a.risk==='CRITICAL'?'var(--accent3)':'var(--accent4)')+'">'+a.risk+'</span></div>';}).join('');
+    loadATMTamperEvents();
+  }catch(e){document.getElementById('atm-fleet-list').innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Add atm_forensics.py to Flask routes to enable</div>';}
+}
+async function loadATMTamperEvents(){
+  try{var res=await fetch(API+'/atm/tamper-events',{headers:authHeaders()});var data=await res.json();
+    document.getElementById('atm-tamper-list').innerHTML=data.events.map(function(e){return '<div style="padding:10px;margin-bottom:8px;background:rgba(255,77,109,0.05);border:1px solid rgba(255,77,109,0.15);border-radius:6px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span class="mono" style="font-size:11px;color:var(--accent3)">'+e.type+'</span><span class="mono" style="font-size:10px;color:var(--text3)">'+new Date(e.detected_at).toLocaleString()+'</span></div><div style="font-size:11px;color:var(--text2);margin-bottom:4px">'+e.atm_id+' - '+e.description+'</div><div style="display:flex;justify-content:space-between"><span class="badge badge-yellow">'+e.confidence+'%</span><span class="badge badge-red">'+e.action+'</span></div></div>';}).join('');
+  }catch(e){}
+}
+async function runATMScan(){
+  var atmId=document.getElementById('scan-atm-id').value;var result=document.getElementById('atm-scan-result');
+  result.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--accent3)">Scanning '+atmId+'...</div>';
+  try{var res=await fetch(API+'/atm/scan/'+atmId,{method:'POST',headers:authHeaders()});var d=await res.json();
+    var riskColor={LOW:'var(--accent)',MEDIUM:'var(--accent4)',HIGH:'var(--accent3)',CRITICAL:'var(--accent3)'};
+    result.innerHTML='<div style="background:rgba(0,255,180,0.03);border:1px solid var(--border);border-radius:8px;padding:14px"><div style="display:flex;justify-content:space-between;margin-bottom:12px"><div><div style="font-family:var(--mono);font-size:12px;color:var(--accent)">'+d.atm_id+'</div><div style="font-size:12px;color:var(--text2)">'+d.location+'</div></div><div style="text-align:right"><div style="font-family:var(--mono);font-size:24px;font-weight:700;color:'+(riskColor[d.risk_level]||'var(--accent)')+'">'+d.threat_score+'</div><div style="font-family:var(--mono);font-size:10px;color:'+(riskColor[d.risk_level]||'var(--accent)')+'">'+d.risk_level+'</div></div></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">'+Object.entries(d.sensors).map(function(e){return '<div style="background:rgba(0,255,180,0.02);border:1px solid var(--border);border-radius:4px;padding:8px"><div style="font-family:var(--mono);font-size:9px;color:var(--text2);text-transform:uppercase;margin-bottom:3px">'+e[0].replace(/_/g,' ')+'</div><div style="font-family:var(--mono);font-size:11px;color:'+(e[1].status==='NORMAL'?'var(--accent)':'var(--accent3)')+'">'+e[1].status+'</div></div>';}).join('')+'</div><div style="background:rgba('+(d.threat_score>65?'255,77,109':'0,255,180')+',0.08);border:1px solid rgba('+(d.threat_score>65?'255,77,109':'0,255,180')+',0.2);border-radius:4px;padding:10px;font-family:var(--mono);font-size:11px;color:'+(d.threat_score>65?'var(--accent3)':'var(--accent)')+'">'+d.recommendation+'</div></div>';
+  }catch(e){result.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Add atm_forensics.py to Flask to enable scanning</div>';}
+}
+var lastAnalysis={amount:0,category:"Unknown"};function doCreateCase(){createCaseFromTx(lastAnalysis.amount,lastAnalysis.category);}function highlightTx(i){var t=state.transactions[i];if(!t)return;var notes=document.getElementById("inv-notes");if(notes)notes.value+=(notes.value?"\n":"")+'['+new Date().toLocaleTimeString()+'] TX $'+t.amount+' '+t.verdict.toUpperCase()+' score:'+t.score+'/100';}
+function loadInvestigationTimeline(){
+  var list=document.getElementById('timeline-list');var txs=state.transactions.slice(0,12);
+  if(!txs.length){list.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">No transactions yet</div>';return;}
+  var mn=['Grocery','Gas','Restaurant','Electronics','Travel','ATM','Online','Healthcare','Other'];var tn=['POS','QR','ATM','Wire','CNP'];
+  list.innerHTML=txs.map(function(t,i){return '<div style="display:flex;gap:12px;margin-bottom:10px;cursor:pointer" onclick="highlightTx('+i+')">'+'<div style="display:flex;flex-direction:column;align-items:center"><div style="width:10px;height:10px;border-radius:50%;background:'+(t.verdict==='fraud'?'var(--accent3)':'var(--accent)')+';flex-shrink:0;margin-top:2px"></div>'+(i<txs.length-1?'<div style="width:1px;flex:1;background:var(--border);margin-top:3px;min-height:20px"></div>':'')+'</div><div style="flex:1;background:rgba(0,255,180,0.02);border:1px solid var(--border);border-radius:6px;padding:9px;margin-bottom:3px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="badge badge-'+(t.verdict==='fraud'?'red':'green')+'" style="font-size:9px">'+t.verdict.toUpperCase()+'</span><span class="mono" style="font-size:10px;color:var(--text3)">'+new Date(t.ts).toLocaleTimeString()+'</span></div><div style="font-family:var(--mono);font-size:11px;color:var(--text)">$'+t.amount.toLocaleString()+' - '+(tn[t.type]||'TXN')+' at '+(mn[t.merchant]||'Other')+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px">Score: '+t.score+'/100 | Dist: '+t.distance+'km</div></div></div>';}).join('');
+}
+function investigateTx(el,id,amount,verdict,score){if(el&&el.dataset){id=el.dataset.id;amount=el.dataset.amount;verdict=el.dataset.verdict;score=el.dataset.score;}var notes=document.getElementById("inv-notes");if(notes){if(notes.value)notes.value+=" | ";notes.value+="TX $"+amount+" "+verdict.toUpperCase()+" score:"+score+"/100";}}
+
+
+
+async function loadFraudRings(){
+  var list=document.getElementById('rings-list');
+  try{var res=await fetch(API+'/graph/rings',{headers:authHeaders()});var data=await res.json();
+    if(!data.rings.length){list.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--accent)">No fraud rings detected yet</div>';return;}
+    list.innerHTML=data.rings.map(function(r){return '<div style="padding:12px;background:rgba(255,77,109,0.05);border:1px solid rgba(255,77,109,0.2);border-radius:6px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><span class="mono" style="font-size:11px;color:var(--accent3)">'+r.id+'</span><span class="badge badge-red">'+r.risk+'</span></div><div style="font-size:12px;color:var(--text);margin-bottom:4px">'+r.type+'</div><div style="font-size:11px;color:var(--text2)">'+r.description+'</div><div style="display:flex;gap:16px;margin-top:8px"><div><div style="font-family:var(--mono);font-size:9px;color:var(--text2)">MEMBERS</div><div style="font-family:var(--mono);color:var(--accent3)">'+r.members+'</div></div><div><div style="font-family:var(--mono);font-size:9px;color:var(--text2)">TOTAL</div><div style="font-family:var(--mono);color:var(--accent3)">$'+r.total_amount.toLocaleString()+'</div></div></div></div>';}).join('');
+    updateNetworkGraph();
+  }catch(e){list.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Add graph_route.py to Flask to enable</div>';}
+}
+function updateNetworkGraph(){
+  var wrap=document.getElementById('network-graph-wrap');if(!wrap)return;
+  var fraud=state.transactions.filter(function(t){return t.verdict==='fraud';}).slice(0,6);
+  var legit=state.transactions.filter(function(t){return t.verdict==='legit';}).slice(0,3);
+  if(!fraud.length){wrap.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">No linked entities yet</div>';return;}
+  var html='<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">';
+  if(fraud.length>1)html+='<div class="graph-node"><div class="node-circle node-fraud" style="width:52px;height:52px;font-size:9px">SUSPECT</div><div class="node-label">Entity</div></div><div style="font-family:var(--mono);font-size:14px;color:var(--accent3)">&#8594;</div>';
+  html+=fraud.map(function(t){return '<div class="graph-node"><div class="node-circle node-fraud">$'+Math.round(t.amount/1000)+'K</div><div class="node-label">FRAUD</div></div>';}).join('<div style="font-family:var(--mono);font-size:12px;color:var(--border2)">&#8596;</div>');
+  if(legit.length)html+='<div style="margin-left:12px;font-family:var(--mono);font-size:14px;color:var(--text3)">|</div>'+legit.map(function(t){return '<div class="graph-node"><div class="node-circle node-legit">$'+Math.round(t.amount)+'</div><div class="node-label">LEGIT</div></div>';}).join('');
+  html+='</div>';wrap.innerHTML=html;
+}
+var invNotes=JSON.parse(localStorage.getItem('fs_inv_notes')||'[]');
+function saveInvNote(){
+  var caseRef=document.getElementById('inv-case').value.trim();var analyst=document.getElementById('inv-analyst').value.trim();var notes=document.getElementById('inv-notes').value.trim();
+  if(!notes)return;
+  invNotes.unshift({id:Date.now(),caseRef:caseRef,analyst:analyst||'Anonymous',notes:notes,ts:new Date().toISOString()});
+  localStorage.setItem('fs_inv_notes',JSON.stringify(invNotes));document.getElementById('inv-notes').value='';renderInvNotes();
+}
+function renderInvNotes(){
+  var list=document.getElementById('inv-notes-list');if(!list)return;
+  if(!invNotes.length){list.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">No notes yet</div>';return;}
+  list.innerHTML=invNotes.slice(0,10).map(function(n){return '<div style="padding:8px;background:rgba(0,255,180,0.03);border:1px solid var(--border);border-radius:4px;margin-bottom:6px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span class="mono" style="font-size:10px;color:var(--accent)">'+(n.caseRef||'No case')+'</span><span class="mono" style="font-size:10px;color:var(--text3)">'+new Date(n.ts).toLocaleTimeString()+'</span></div><div style="font-size:12px;color:var(--text2)">'+n.notes+'</div><div style="font-size:10px;color:var(--text3);margin-top:3px">by '+n.analyst+'</div></div>';}).join('');
+}
+var alertPollTimer=null;
+async function loadAlerts(){
+  var allAlerts=[];
+  try{var res=await fetch(API+'/intel/alerts',{headers:authHeaders()});var ra=await res.json();allAlerts=Array.isArray(ra)?ra:[];}catch(e){allAlerts=[];}
+  var txAlerts=state.transactions.filter(function(t){return t.verdict==='fraud';}).slice(0,5).map(function(t){return {id:'tx_'+t.id,type:'FRAUD_DETECTED',severity:'HIGH',message:'Fraud: $'+t.amount.toLocaleString()+' - '+t.category,amount:t.amount,category:t.category,ts:t.ts,acknowledged:false};});
+  var combined=allAlerts.concat(txAlerts).sort(function(a,b){return new Date(b.ts)-new Date(a.ts);}).slice(0,20);
+  var feed=document.getElementById('alerts-feed');
+  var unacked=combined.filter(function(a){return !a.acknowledged;}).length;
+  document.getElementById('alert-count').textContent=unacked;
+  document.getElementById('fraud-alert-count').textContent=state.transactions.filter(function(t){return t.verdict==='fraud';}).length;
+  if(!combined.length){feed.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--accent)">No active alerts</div>';return;}
+  feed.innerHTML=combined.map(function(a){return '<div style="padding:10px;margin-bottom:8px;background:rgba('+(a.severity==='HIGH'||a.severity==='CRITICAL'?'255,77,109':'0,200,255')+',0.04);border:1px solid rgba('+(a.severity==='HIGH'||a.severity==='CRITICAL'?'255,77,109':'0,200,255')+',0.15);border-radius:6px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span class="badge badge-'+(a.severity==='CRITICAL'?'red':a.severity==='HIGH'?'yellow':'blue')+'">'+a.severity+'</span><span class="mono" style="font-size:10px;color:var(--text3)">'+new Date(a.ts).toLocaleTimeString()+'</span></div><div style="font-size:12px;color:var(--text);margin-bottom:2px">'+a.message+'</div><div style="font-size:11px;color:var(--text3)">'+a.type+(a.category?' - '+a.category:'')+'</div></div>';}).join('');
+}
+function startAlertPolling(){
+  if(alertPollTimer)clearInterval(alertPollTimer);
+  var interval=parseInt(document.getElementById('alert-interval').value||10)*1000;
+  loadAlerts();alertPollTimer=setInterval(loadAlerts,interval);
+  var pulse=document.getElementById('alert-pulse');if(pulse)pulse.style.color='var(--accent)';
+}
+function stopAlertPolling(){
+  if(alertPollTimer){clearInterval(alertPollTimer);alertPollTimer=null;}
+  var pulse=document.getElementById('alert-pulse');if(pulse)pulse.style.color='var(--text3)';
+}
+var copilotOpen=true;var copilotHistory=[];
+function toggleCopilot(){copilotOpen=!copilotOpen;document.getElementById('copilot-panel').classList.toggle('open',copilotOpen);}
+async function sendCopilot(){
+  var input=document.getElementById('copilot-input');var msg=input.value.trim();if(!msg)return;input.value='';
+  copilotHistory.push({role:'user',content:msg});
+  var msgs=document.getElementById('copilot-messages');
+  msgs.innerHTML+='<div class="msg user">'+msg+'</div>';
+  var thinking=document.createElement('div');thinking.className='msg ai';thinking.textContent='Thinking...';msgs.appendChild(thinking);msgs.scrollTop=msgs.scrollHeight;
+  var txCtx=state.transactions.slice(0,10).map(function(t){return '$'+t.amount+' '+t.verdict.toUpperCase()+' score:'+t.score;}).join(', ')||'none';
+  try{
+    var res=await fetch(API+'/copilot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,history:copilotHistory.slice(-10),context:txCtx})});
+    if(!res.ok)throw new Error(res.status);var data=await res.json();
+    thinking.textContent=data.reply||'No response.';copilotHistory.push({role:'assistant',content:data.reply});
+  }catch(e){thinking.textContent='Backend error: '+e.message+'.';}
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+async function loadTelecom(){
+  try{
+    var r1=await fetch(API+'/telecom/sim-swap',{headers:authHeaders()});var d1=await r1.json();
+    document.getElementById('sim-swap-list').innerHTML=(d1.events||[]).map(function(e){return '<div style="padding:10px;margin-bottom:8px;background:rgba(255,77,109,0.05);border:1px solid rgba(255,77,109,0.15);border-radius:6px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span class="mono" style="font-size:11px;color:var(--accent3)">'+e.event+'</span><span class="badge badge-'+(e.risk==='CRITICAL'?'red':'yellow')+'">'+e.risk+'</span></div><div class="mono" style="font-size:11px;color:var(--accent);margin-bottom:3px">'+e.msisdn+' — '+e.carrier+'</div><div style="font-size:11px;color:var(--text2)">'+e.detail+'</div><div class="mono" style="font-size:10px;color:var(--text3);margin-top:3px">'+new Date(e.detected_at).toLocaleString()+'</div></div>';}).join('');
+    var r2=await fetch(API+'/telecom/scam-calls',{headers:authHeaders()});var d2=await r2.json();
+    document.getElementById('scam-call-list').innerHTML=(d2.calls||[]).map(function(c){return '<div style="padding:10px;margin-bottom:8px;background:rgba(180,77,255,0.05);border:1px solid rgba(180,77,255,0.15);border-radius:6px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span class="mono" style="font-size:11px;color:var(--accent5)">'+c.number+'</span><span class="badge badge-purple">'+c.type+'</span></div><div style="font-size:11px;color:var(--text2);margin-bottom:3px">'+c.script+'</div><div style="display:flex;gap:12px"><span class="mono" style="font-size:10px;color:var(--accent3)">Reports: '+c.reported+'</span><span class="mono" style="font-size:10px;color:var(--accent3)">Confidence: '+c.confidence+'%</span></div></div>';}).join('');
+  }catch(e){document.getElementById('sim-swap-list').innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Add telecom_forensics.py to Flask routes</div>';}
+}
+
+async function checkTelecomNumber(){
+  var num=document.getElementById('tel-number').value.trim();
+  var result=document.getElementById('tel-result');
+  try{
+    var res=await fetch(API+'/telecom/check/'+encodeURIComponent(num),{headers:authHeaders()});var d=await res.json();
+    result.innerHTML='<div style="background:rgba(0,255,180,0.03);border:1px solid var(--border);border-radius:6px;padding:12px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-bottom:3px">RISK LEVEL</div><div class="mono" style="font-size:14px;color:'+(d.risk_level==='CRITICAL'?'var(--accent3)':d.risk_level==='HIGH'?'var(--accent4)':'var(--accent)')+'">'+d.risk_level+'</div></div><div><div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-bottom:3px">CARRIER</div><div class="mono" style="font-size:12px;color:var(--text)">'+d.carrier_check+'</div></div><div><div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-bottom:3px">SIM SWAP</div><div class="mono" style="font-size:12px;color:'+(d.sim_swap_detected?'var(--accent3)':'var(--accent)')+'">'+( d.sim_swap_detected?'DETECTED':'CLEAR')+'</div></div><div><div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-bottom:3px">OTP RISK</div><div class="mono" style="font-size:12px;color:'+(d.otp_interception_risk?'var(--accent3)':'var(--accent)')+'">'+( d.otp_interception_risk?'HIGH RISK':'LOW')+'</div></div></div><div style="margin-top:10px;padding:8px;background:rgba('+(d.risk_level==='CRITICAL'?'255,77,109':'0,255,180')+',0.06);border-radius:4px;font-family:var(--mono);font-size:11px;color:'+(d.risk_level==='CRITICAL'?'var(--accent3)':'var(--accent)')+'">'+d.recommendation+'</div></div>';
+  }catch(e){result.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Backend offline</div>';}
+}
+
+async function analyzeVoice(){
+  var result=document.getElementById('voice-result');
+  try{
+    var res=await fetch(API+'/telecom/voice-analysis',{method:'POST',headers:authHeaders(),body:JSON.stringify({number:document.getElementById('voice-number').value,script:document.getElementById('voice-script').value})});
+    var d=await res.json();
+    result.innerHTML='<div style="background:rgba(0,255,180,0.03);border:1px solid var(--border);border-radius:6px;padding:12px"><div style="font-family:var(--mono);font-size:24px;font-weight:700;color:'+(d.risk_level==='CRITICAL'?'var(--accent3)':'var(--accent)')+'">'+d.ai_voice_probability+'%</div><div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:8px">AI VOICE PROBABILITY</div>'+(d.voice_cloning_detected?'<div class="badge badge-red" style="margin-bottom:6px">VOICE CLONING DETECTED</div><br>':'' )+(d.emotional_manipulation?'<div class="badge badge-yellow" style="margin-bottom:6px">EMOTIONAL MANIPULATION</div><br>':''  )+'<div style="margin-top:8px;font-family:var(--mono);font-size:11px;color:'+(d.risk_level==='CRITICAL'?'var(--accent3)':'var(--accent)')+'">'+d.recommendation+'</div></div>';
+  }catch(e){result.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Backend offline</div>';}
+}
+
+async function collectEvidence(){
+  var caseId=document.getElementById('ev-case').value.trim();
+  var type=document.getElementById('ev-type').value;
+  var desc=document.getElementById('ev-desc').value.trim();
+  var msg=document.getElementById('ev-msg');
+  if(!desc){msg.style.color='var(--accent3)';msg.textContent='Description required';return;}
+  try{
+    var res=await fetch(API+'/evidence/collect',{method:'POST',headers:authHeaders(),body:JSON.stringify({case_id:caseId,type:type,description:desc})});
+    var d=await res.json();
+    msg.style.color='var(--accent)';msg.textContent='Evidence '+d.id+' collected. Hash: '+d.data_hash.slice(0,16)+'...';
+    document.getElementById('ev-desc').value='';loadEvidence();
+  }catch(e){msg.style.color='var(--accent3)';msg.textContent='Backend offline';}
+}
+
+async function loadEvidence(){
+  var list=document.getElementById('evidence-list');
+  try{
+    var res=await fetch(API+'/evidence/list',{headers:authHeaders()});var d=await res.json();
+    if(!d.evidence||!d.evidence.length){list.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">No evidence collected yet</div>';return;}
+    list.innerHTML=d.evidence.map(function(e){return '<div style="padding:10px;margin-bottom:8px;background:rgba(0,255,180,0.03);border:1px solid var(--border);border-radius:6px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span class="mono" style="font-size:11px;color:var(--accent)">'+e.id+'</span><span class="badge badge-green">VERIFIED</span></div><div style="font-size:11px;color:var(--text);margin-bottom:3px">'+e.type+' — '+e.description+'</div><div class="mono" style="font-size:10px;color:var(--text3)">Hash: '+e.data_hash.slice(0,24)+'...</div><div class="mono" style="font-size:10px;color:var(--text3)">'+new Date(e.collected_at).toLocaleString()+' by '+e.collected_by+'</div></div>';}).join('');
+  }catch(e){list.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Add evidence.py to Flask routes</div>';}
+}
+
+async function replaySession(){
+  var sessId=document.getElementById('sess-id').value.trim();
+  var result=document.getElementById('session-replay-result');
+  result.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--accent3)">Reconstructing session...</div>';
+  try{
+    var res=await fetch(API+'/evidence/session-replay',{method:'POST',headers:authHeaders(),body:JSON.stringify({session_id:sessId})});
+    var d=await res.json();
+    result.innerHTML='<div style="background:rgba(0,255,180,0.03);border:1px solid var(--border);border-radius:8px;padding:14px"><div style="display:flex;justify-content:space-between;margin-bottom:12px"><div><div class="mono" style="font-size:12px;color:var(--accent)">'+d.session_id+'</div><div style="font-size:12px;color:var(--accent3);margin-top:2px">'+d.attack_vector+'</div></div><div style="text-align:right"><div class="mono" style="font-size:22px;color:var(--accent3)">'+d.forensic_confidence+'%</div><div class="mono" style="font-size:10px;color:var(--text2)">CONFIDENCE</div></div></div>'
+    +d.reconstruction.map(function(r){return '<div style="display:flex;gap:10px;margin-bottom:8px"><div class="mono" style="font-size:10px;color:var(--accent2);min-width:50px">'+r.ts+'</div><div style="flex:1;font-size:12px;color:'+(r.risk==='CRITICAL'?'var(--accent3)':'var(--text2)')+'">'+r.event+(r.amount?' — $'+r.amount.toLocaleString():'')+(r.detail?' — '+r.detail:'')+'</div>'+(r.risk?'<span class="badge badge-red" style="font-size:9px">'+r.risk+'</span>':'')+'</div>';}).join('')
+    +'</div>';
+  }catch(e){result.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Add evidence.py to Flask routes</div>';}
+}
+
+async function analyzeBehavioral(){
+  var result=document.getElementById('behavioral-result');
+  try{
+    var res=await fetch(API+'/behavioral/analyze',{method:'POST',headers:authHeaders(),body:JSON.stringify({typing_speed_wpm:parseInt(document.getElementById('b-typing').value)||60,mouse_entropy:parseFloat(document.getElementById('b-mouse').value)||0.5,session_duration_s:parseInt(document.getElementById('b-session').value)||300,transaction_pattern:document.getElementById('b-pattern').value})});
+    var d=await res.json();
+    result.innerHTML='<div style="background:rgba(0,255,180,0.03);border:1px solid var(--border);border-radius:8px;padding:14px"><div style="display:flex;justify-content:space-between;margin-bottom:10px"><div><div class="mono" style="font-size:24px;font-weight:700;color:'+(d.risk_level==='CRITICAL'?'var(--accent3)':d.risk_level==='HIGH'?'var(--accent4)':'var(--accent)')+'">'+d.anomaly_score+'/100</div><div class="mono" style="font-size:10px;color:var(--text2)">ANOMALY SCORE</div></div><div><span class="badge badge-'+(d.risk_level==='CRITICAL'||d.risk_level==='HIGH'?'red':'green')+'">'+( d.is_bot?'BOT DETECTED':'HUMAN')+'</span></div></div>'+(d.flags.length?'<div style="margin-bottom:10px">'+d.flags.map(function(f){return '<div style="font-size:11px;color:var(--accent3);margin-bottom:3px">&#9888; '+f+'</div>';}).join('')+'</div>':'')+'<div style="font-family:var(--mono);font-size:11px;color:'+(d.risk_level==='CRITICAL'?'var(--accent3)':d.risk_level==='HIGH'?'var(--accent4)':'var(--accent)')+'">'+d.recommendation+'</div></div>';
+  }catch(e){result.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Add behavioral.py to Flask routes</div>';}
+}
+
+async function loadUserProfile(){
+  var userId=document.getElementById('b-userid').value.trim();
+  var result=document.getElementById('user-profile-result');
+  try{
+    var res=await fetch(API+'/behavioral/profile/'+userId,{headers:authHeaders()});var d=await res.json();
+    result.innerHTML='<div style="background:rgba(0,255,180,0.03);border:1px solid var(--border);border-radius:6px;padding:12px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><div class="mono" style="font-size:9px;color:var(--text2);margin-bottom:3px">AVG SESSION</div><div class="mono" style="font-size:12px;color:var(--text)">'+d.baseline.avg_session_duration_s+'s</div></div><div><div class="mono" style="font-size:9px;color:var(--text2);margin-bottom:3px">TYPING SPEED</div><div class="mono" style="font-size:12px;color:var(--text)">'+d.baseline.avg_typing_speed_wpm+' WPM</div></div><div><div class="mono" style="font-size:9px;color:var(--text2);margin-bottom:3px">MONTHLY TX</div><div class="mono" style="font-size:12px;color:var(--text)">'+d.baseline.avg_monthly_transactions+'</div></div><div><div class="mono" style="font-size:9px;color:var(--text2);margin-bottom:3px">AVG AMOUNT</div><div class="mono" style="font-size:12px;color:var(--text)">$'+d.baseline.avg_transaction_amount.toLocaleString()+'</div></div></div><div style="margin-top:8px"><div class="mono" style="font-size:9px;color:var(--text2);margin-bottom:3px">DEVIATION SCORE</div><div class="risk-bar-bg"><div class="risk-bar-fill" style="width:'+d.current_deviation_score+'%;background:'+(d.current_deviation_score>70?'var(--accent3)':d.current_deviation_score>40?'var(--accent4)':'var(--accent)')+'"></div></div><div class="mono" style="font-size:10px;color:var(--text3);margin-top:3px">Risk trend: '+d.risk_trend+'</div></div></div>';
+  }catch(e){result.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Backend offline</div>';}
+}
+
+
+// ── Real System: Live DB polling ─────────────────────────
+var liveStreamTimer=null;
+async function refreshLiveStats(){
+  try{
+    var res=await fetch(API+'/intel/stats',{headers:authHeaders()});
+    if(res.status===401){clearInterval(liveStreamTimer);liveStreamTimer=null;return;}
+    if(!res.ok)return;
+    var s=await res.json();
+    animCount('s-total',s.transactions||0);animCount('s-fraud',s.fraud||0);
+    animCount('s-cases',s.open_cases||0);animCount('d-total',s.transactions||0);
+    animCount('d-fraud',s.fraud||0);animCount('d-legit',(s.transactions||0)-(s.fraud||0));
+    var rate=s.transactions>0?Math.round(s.fraud/s.transactions*100):0;
+    var re=document.getElementById('s-rate');if(re)re.textContent=rate+'% fraud rate';
+    var dr=document.getElementById('d-rate');if(dr)dr.textContent=rate+'%';
+    ['tk-total','tk-total2'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=s.transactions||0;});
+    ['tk-fraud','tk-fraud2'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=s.fraud||0;});
+    ['tk-cases','tk-cases2'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=s.open_cases||0;});
+  }catch(e){}
+  try{
+    var r2=await fetch(API+'/predict/stream',{headers:authHeaders()});
+    if(!r2.ok)return;
+    var sd=await r2.json();
+    var txns=sd.transactions||[];
+    txns.forEach(function(t){
+      var exists=state.transactions.find(function(s){return s.id===t.id;});
+      if(!exists){
+        state.transactions.unshift({
+          id:t.id,amount:t.amount,type:t.transaction_type||0,
+          merchant:t.merchant_category||0,hour:t.time_of_day||0,
+          distance:t.distance_from_home||0,velocity:t.num_transactions_today||1,
+          score:Math.round((t.confidence||0)*100),
+          verdict:t.is_fraud?'fraud':'legit',
+          category:t.fraud_category||'Unknown',
+          ts:t.created_at||new Date().toISOString()
+        });
+      }
+    });
+    if(state.transactions.length>200)state.transactions=state.transactions.slice(0,200);
+    save();updateSOCFeed();updateCatBreakdown();updateGraph();
+    renderActivityChart(state.transactions.slice(0,20).reverse());
+  }catch(e){}
+  try{
+    var r3=await fetch(API+'/intel/alerts?acknowledged=false',{headers:authHeaders()});
+    if(r3.ok){var al=await r3.json();var cnt=Array.isArray(al)?al.length:0;var el=document.getElementById('alert-count');if(el)el.textContent=cnt;}
+  }catch(e){}
+}
+function startLiveStream(){
+  if(liveStreamTimer)clearInterval(liveStreamTimer);
+  refreshLiveStats();
+  liveStreamTimer=setInterval(refreshLiveStats,8000);
+}
+async function renderHistoryFromDB(){
+  var wrap=document.getElementById('history-table-wrap');
+  try{
+    var res=await fetch(API+'/predict/history?limit=50',{headers:authHeaders()});
+    if(!res.ok)throw new Error();
+    var txns=await res.json();
+    if(!txns.length){wrap.innerHTML='<div style="text-align:center;padding:2rem;font-family:var(--mono);font-size:11px;color:var(--text3)">No transactions in database yet</div>';return;}
+    wrap.innerHTML='<table><thead><tr><th>ID</th><th>Amount</th><th>Verdict</th><th>Score</th><th>Category</th><th>IP Address</th><th>Timestamp</th></tr></thead><tbody>'
+    +txns.map(function(t){return '<tr><td class="mono" style="color:var(--text3)">#'+t.id+'</td><td class="mono">$'+t.amount.toLocaleString()+'</td><td><span class="badge badge-'+(t.is_fraud?'red':'green')+'">'+(t.is_fraud?'FRAUD':'LEGIT')+'</span></td><td class="mono" style="color:'+(t.confidence>0.64?'var(--accent3)':t.confidence>0.34?'var(--accent4)':'var(--accent)')+'">'+Math.round((t.confidence||0)*100)+'/100</td><td style="font-size:11px">'+(t.fraud_category||'Unknown')+'</td><td class="mono" style="font-size:10px;color:var(--text2)">'+(t.ip_address||'N/A')+'</td><td class="mono" style="color:var(--text3);font-size:10px">'+new Date(t.created_at).toLocaleString()+'</td></tr>';}).join('')
+    +'</tbody></table>';
+  }catch(e){renderHistory();}
+}
+
+function loadBehavioral(){analyzeBehavioral();}
+checkAuth();updateDashboard();updateTicker();loadThreats();renderInvNotes();
+</script>
+</body>
+</html>
