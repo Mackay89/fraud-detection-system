@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()
+
 from flask import Flask, jsonify
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
@@ -61,4 +64,5 @@ app = create_app()
 
 if __name__ == "__main__":
     print("FraudShield Enterprise v4.0 starting on port 5000")
-    socketio.run(app, host="0.0.0.0", port=5000, debug=False)
+    port = int(os.environ.get("PORT", 5000))
+    socketio.run(app, host="0.0.0.0", port=port, debug=False)
