@@ -8,7 +8,8 @@ def auc_score(yt,ys):
     d=np.argsort(ys)[::-1];yt=yt[d]
     np2=yt.sum();nn=len(yt)-np2
     if np2==0 or nn==0:return 0.5
-    return float(np.trapezoid(np.cumsum(yt)/np2,np.cumsum(1-yt)/nn))
+    trapz_fn = getattr(np, "trapezoid", None) or getattr(np, "trapz", None)
+    return float(trapz_fn(np.cumsum(yt)/np2,np.cumsum(1-yt)/nn))
 
 if __name__=="__main__":
     np.random.seed(42)
