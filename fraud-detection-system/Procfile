@@ -1,1 +1,1 @@
-web: cd fraud-detection-system/backend && python app.py
+web: gunicorn --worker-class eventlet -w 1 --chdir fraud-detection-system/backend app:app --bind 0.0.0.0:$PORT
