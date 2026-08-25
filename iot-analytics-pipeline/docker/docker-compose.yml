@@ -1,0 +1,123 @@
+version: '3.8'
+
+# ── IoT Analytics Pipeline — Docker Compose ────────────────────────────────────
+# Spins up: Zookeeper, Kafka, the Node.js API, and Apache Airflow (webserver + scheduler)
+# Usage: docker-compose up -d
+
+services:
+
+  # ── Zookeeper ────────────────────────────────────────────────────────────────
+  zookeeper:
+    image: wurstmeister/zookeeper:3.4.6
+    container_name: iot-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Kafka ─────────────────────────────────────────────────────────────────────
+  kafka:
+    image: wurstmeister/kafka:2.13-2.8.1
+    container_name: iot-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_HOST_NAME: localhost
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_CREATE_TOPICS: "iot-data:3:1"   # topic:partitions:replication
+      KAFKA_LOG_RETENTION_HOURS: 24
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "kafka-topics.sh", "--list", "--zookeeper", "zookeeper:2181"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # ── Node.js API ───────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    container_name: iot-api
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      KAFKA_BROKERS: kafka:9092
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Airflow — initialise DB ───────────────────────────────────────────────────
+  airflow-init:
+    image: apache/airflow:2.8.0
+    container_name: iot-airflow-init
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: sqlite:////opt/airflow/airflow.db
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      _AIRFLOW_DB_UPGRADE: 'true'
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: admin
+      _AIRFLOW_WWW_USER_PASSWORD: admin
+    volumes:
+      - airflow-db:/opt/airflow
+      - ../airflow:/opt/airflow/dags
+    entrypoint: airflow db init
+    restart: "no"
+
+  # ── Airflow — web UI ──────────────────────────────────────────────────────────
+  airflow-webserver:
+    image: apache/airflow:2.8.0
+    container_name: iot-airflow-web
+    ports:
+      - "8080:8080"
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: sqlite:////opt/airflow/airflow.db
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    volumes:
+      - airflow-db:/opt/airflow
+      - ../airflow:/opt/airflow/dags
+    command: webserver
+    depends_on:
+      - airflow-init
+    restart: unless-stopped
+
+  # ── Airflow — scheduler ───────────────────────────────────────────────────────
+  airflow-scheduler:
+    image: apache/airflow:2.8.0
+    container_name: iot-airflow-scheduler
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: sqlite:////opt/airflow/airflow.db
+    volumes:
+      - airflow-db:/opt/airflow
+      - ../airflow:/opt/airflow/dags
+    command: scheduler
+    depends_on:
+      - airflow-init
+    restart: unless-stopped
+
+volumes:
+  airflow-db:
